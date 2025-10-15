@@ -1,6 +1,6 @@
 package org.acme.wallet.mapper;
 
-import org.acme.test_utility.WalletTestUtility;
+import org.acme.test_common.test_data.WalletTestData;
 import org.acme.wallet.api.contract.WalletResponse;
 import org.acme.wallet.model.WalletModel;
 import org.junit.jupiter.api.Assertions;
@@ -11,9 +11,9 @@ public class WalletMapperTest {
     @Test
     public void testModelToResponse() {
         // Given
-        WalletModel model = WalletTestUtility.wallet;
+        WalletModel model = WalletTestData.getWallet();
 
-        WalletResponse expected = WalletTestUtility.response;
+        WalletResponse expected = WalletTestData.getResponse();
 
         // When
         WalletResponse actual = WalletMapper.INSTANCE.modelToResponse(model);

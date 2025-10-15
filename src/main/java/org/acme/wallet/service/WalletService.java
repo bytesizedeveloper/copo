@@ -3,57 +3,115 @@ package org.acme.wallet.service;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
+import org.acme.common.exception.CryptographicException;
 import org.acme.common.service.KeyStoreService;
 import org.acme.common.utility.HashUtility;
 import org.acme.common.utility.KeyPairUtility;
+import org.acme.common.utility.TimestampUtility;
 import org.acme.wallet.model.WalletModel;
+import org.acme.wallet.repository.WalletRepository;
 
 import java.security.KeyPair;
+import java.security.KeyStoreException;
+import java.security.PrivateKey;
 import java.security.PublicKey;
 
 /**
  * A service responsible for the creation, derivation, and initial persistence of a cryptocurrency wallet.
+ * It also provides the core function for **cryptographically signing** data using the wallet's private key.
  * <p>
- * It leverages {@code KeyPairUtility} for cryptographic key generation and
- * {@code KeyStoreService} for secure storage, abstracting the details of key
- * persistence and configuration-based security.
+ * It manages the core business logic: quantum-resistant key generation, address derivation,
+ * secure private key persistence via {@code KeyStoreService}, and public metadata
+ * persistence via {@code WalletRepository}.
  */
 @Slf4j
 @ApplicationScoped
 public class WalletService {
 
     /**
-     * Injected service used for securely writing the generated wallet's private key
+     * Injected repository for persisting public wallet metadata (address, public key, created timestamp)
+     * to the database.
+     */
+    private final WalletRepository walletRepository;
+
+    /**
+     * Injected service used for securely writing and reading the generated wallet's private key
      * and certificate to the password-protected key store file. The password for the
      * keystore is managed via configuration in the {@code KeyStoreService}.
      */
+    private final KeyStoreService keyStoreService;
+
+    /**
+     * Constructs the WalletService, injecting necessary final dependencies.
+     *
+     * @param walletRepository The repository for persisting public wallet metadata.
+     * @param keyStoreService The service for secure private key storage and retrieval.
+     */
     @Inject
-    private KeyStoreService keyStoreService;
+    public WalletService(WalletRepository walletRepository, KeyStoreService keyStoreService) {
+        this.walletRepository = walletRepository;
+        this.keyStoreService = keyStoreService;
+    }
 
     /**
      * Creates a new wallet by generating a cryptographic key pair, deriving a unique address,
-     * and securely persisting the private key to the keystore.
+     * checking for address collisions, and securely persisting the wallet data.
+     *
      * <p>
-     * This method now obtains the keystore password internally via the injected
-     * {@code KeyStoreService}, simplifying the public API.
+     * The process involves:
+     * <ol>
+     * <li>Generating the {@code KeyPair} and deriving the {@code address}.</li>
+     * <li>Checking if the generated {@code address} already exists in the database.</li>
+     * <li>Persisting the private key using the {@code KeyStoreService}.</li>
+     * <li>Saving the public {@code WalletModel} data via the {@code WalletRepository}.</li>
+     * </ol>
      *
      * @return A {@link WalletModel} containing the newly generated key pair and derived address.
-     * @throws Exception If key generation, address derivation, or keystore persistence fails
-     * (e.g., due to an invalid configured password or I/O error).
+     * @throws IllegalStateException If the randomly generated address already exists in the database.
+     * @throws Exception If key generation, address derivation, or persistence fails
+     * (e.g., cryptographic error, database connection failure).
      */
     public WalletModel create() {
         try {
             KeyPair keyPair = KeyPairUtility.generateKeyPair();
             String address = generateAddress(keyPair.getPublic());
 
+            if (walletRepository.exists(address)) {
+                log.error("Address collision detected: {}", address);
+                throw new IllegalStateException("A wallet with this address already exists. Please retry.");
+            }
+
             keyStoreService.writePrivateKeyToKeyStore(keyPair, address);
 
-            log.info("Successfully created and persisted new wallet: {}", address);
-            return new WalletModel(address, keyPair);
+            WalletModel wallet = initialise(address, keyPair);
+
+            walletRepository.insert(wallet);
+
+            return wallet;
         } catch (Exception e) {
-            log.error("Failed to create and persist new wallet.", e);
+            log.error("Failed to create and persist new wallet", e);
             throw e;
         }
+    }
+
+    /**
+     * Cryptographically signs a piece of data using the private key associated with the given wallet address,
+     * returning the signature as a Hex-encoded string.
+     * <p>
+     * The private key is retrieved securely from the underlying key store (e.g., accessed via a {@code KeyStoreService})
+     * using the address as the alias. The data signed is typically the transaction hash ID, ensuring the integrity
+     * and authenticity of the transaction.
+     *
+     * @param address The wallet address (alias/public key hash) whose corresponding private key should be used for signing.
+     * @param data The string representation of the data to be signed (e.g., the transaction hash ID).
+     * @return A **Hex-encoded string** representing the digital signature, ready for network transmission or persistence.
+     * @throws KeyStoreException If the private key cannot be retrieved from the keystore (e.g., alias not found, wrong password, or corrupt keystore).
+     * @throws CryptographicException If the cryptographic signing process fails due to an invalid key, unsupported algorithm, or other internal error.
+     */
+    public String sign(String address, String data) throws KeyStoreException {
+        PrivateKey privateKey = keyStoreService.readPrivateKeyFromKeyStore(address);
+        byte[] signature = KeyPairUtility.sign(privateKey, data);
+        return HashUtility.bytesToHex(signature);
     }
 
     /**
@@ -69,5 +127,21 @@ public class WalletService {
         byte[] blake2b256Hash = HashUtility.calculateBLAKE2b256(sha256Hash);
 
         return "COPO_" + HashUtility.bytesToHex(blake2b256Hash);
+    }
+
+    /**
+     * Creates and initializes a complete {@link WalletModel} domain object
+     * with the generated keys and creation timestamp.
+     *
+     * @param address The derived public wallet address.
+     * @param keyPair The generated cryptographic key pair.
+     * @return A fully initialized {@link WalletModel} instance.
+     */
+    private WalletModel initialise(String address, KeyPair keyPair) {
+        return WalletModel.builder()
+                .address(address)
+                .keyPair(keyPair)
+                .createdAt(TimestampUtility.getOffsetDateTimeNow())
+                .build();
     }
 }

@@ -10,6 +10,7 @@ import org.bouncycastle.operator.OperatorCreationException;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.PrivateKey;
@@ -52,6 +53,18 @@ public final class KeyPairUtility {
         } catch (Exception e) {
             throw new CryptographicException("Failed to generate key pair.", e);
         }
+    }
+
+    /**
+     * Signs a message using the provided private key and the ML-DSA algorithm.
+     *
+     * @param privateKey      The private key to sign with.
+     * @param unsignedMessage The message bytes to sign.
+     * @return The digital signature as a byte array.
+     * @throws CryptographicException if the signing process fails due to an invalid key or a crypto error.
+     */
+    public static byte[] sign(PrivateKey privateKey, String unsignedMessage) {
+        return sign(privateKey, unsignedMessage.getBytes(StandardCharsets.UTF_8));
     }
 
     /**

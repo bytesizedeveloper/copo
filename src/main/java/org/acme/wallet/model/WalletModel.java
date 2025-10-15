@@ -1,10 +1,11 @@
 package org.acme.wallet.model;
 
-import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import org.acme.wallet.api.contract.WalletResponse;
 
 import java.security.KeyPair;
+import java.time.OffsetDateTime;
 
 /**
  * The core domain model representing a cryptographic wallet in the system.
@@ -13,8 +14,10 @@ import java.security.KeyPair;
  * cryptographic key pair and its public blockchain address.
  */
 @Getter
-@AllArgsConstructor
+@Builder(toBuilder = true)
 public class WalletModel {
+
+    private final long id;
 
     /**
      * The public, human-readable address derived from the public key.
@@ -27,6 +30,8 @@ public class WalletModel {
      * This field is kept private and exposed only through specific getters to control access.
      */
     private final KeyPair keyPair;
+
+    private final OffsetDateTime createdAt;
 
     /**
      * Retrieves the encoded public key bytes from the key pair.

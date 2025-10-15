@@ -1,6 +1,14 @@
+buildscript {
+    dependencies {
+        classpath "org.flywaydb:flyway-database-postgresql:$flywayVersion"
+    }
+}
+
 plugins {
     id 'java'
     id 'io.quarkus'
+    id 'org.flywaydb.flyway' version "$flywayVersion"
+    id 'nu.studer.jooq' version '10.1.1'
 }
 
 repositories {
@@ -16,6 +24,7 @@ dependencies {
     implementation 'io.quarkus:quarkus-smallrye-openapi'
     implementation 'io.quarkus:quarkus-hibernate-validator'
     implementation 'io.quarkus:quarkus-rest-jackson'
+    implementation "io.quarkiverse.jooq:quarkus-jooq:$quarkusJooqVersion"
 
     // Bouncycastle
     implementation "org.bouncycastle:bcpkix-lts8on:$bouncyCastleVersion"
@@ -28,8 +37,20 @@ dependencies {
     implementation "org.mapstruct:mapstruct:$mapstructVersion"
     annotationProcessor "org.mapstruct:mapstruct-processor:$mapstructVersion"
 
+    // Database
+    implementation 'io.quarkus:quarkus-jdbc-postgresql'
+    implementation 'io.quarkus:quarkus-flyway'
+    implementation "org.jooq:jooq:$jooqVersion"
+    implementation "org.jooq:jooq-meta:$jooqVersion"
+    implementation "org.jooq:jooq-codegen:$jooqVersion"
+
+    // JOOQ code generation
+    jooqGenerator "org.postgresql:postgresql:$postgresDriverVersion"
+
     testImplementation 'io.quarkus:quarkus-junit5-mockito'
     testImplementation 'io.rest-assured:rest-assured'
+    testImplementation "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:$jacksonDatatypeVersion"
+    testImplementation "org.testcontainers:postgresql:$postgresTestContainerVersion"
 }
 
 group = 'org.acme'
@@ -43,6 +64,16 @@ java {
 test {
     systemProperty "java.util.logging.manager", "org.jboss.logmanager.LogManager"
 }
+
+// Add generated sources to source sets
+sourceSets {
+    main {
+        java {
+            srcDirs += 'src/generated/java'
+        }
+    }
+}
+
 compileJava {
     options.encoding = 'UTF-8'
     options.compilerArgs << '-parameters'
@@ -51,3 +82,58 @@ compileJava {
 compileTestJava {
     options.encoding = 'UTF-8'
 }
+
+// Flyway configuration
+flyway {
+    url = 'jdbc:postgresql://localhost:5432/copo'
+    user = 'satoshi'
+    password = '2theMOON'
+    schemas = ['blockchain']
+    locations = ['classpath:db/migration']
+}
+
+// JOOQ configuration
+jooq {
+    version = "$jooqVersion"
+    edition = nu.studer.gradle.jooq.JooqEdition.OSS
+
+    configurations {
+        main {
+            generateSchemaSourceOnCompilation = false
+
+            generationTool {
+                logging = org.jooq.meta.jaxb.Logging.WARN
+                jdbc {
+                    driver = 'org.postgresql.Driver'
+                    url = 'jdbc:postgresql://localhost:5432/copo'
+                    user = 'satoshi'
+                    password = '2theMOON'
+                }
+                generator {
+                    name = 'org.jooq.codegen.DefaultGenerator'
+                    database {
+                        name = 'org.jooq.meta.postgres.PostgresDatabase'
+                        inputSchema = 'blockchain'
+                        excludes = 'flyway_schema_history'
+                    }
+                    generate {
+                        relations = true
+                        deprecated = false
+                        records = true
+                        fluentSetters = true
+                        validationAnnotations = true
+                    }
+                    target {
+                        packageName = 'jooq'
+                        directory = 'src/generated/java'
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Ensure JOOQ generation runs after Flyway migration
+generateJooq.dependsOn flywayMigrate
+
+

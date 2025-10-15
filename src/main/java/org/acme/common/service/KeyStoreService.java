@@ -81,9 +81,11 @@ public class KeyStoreService {
             // Load existing keystore or initialize new one
             if (Files.exists(path)) {
                 try (FileInputStream fis = new FileInputStream(path.toFile())) {
+                    log.debug("Existing keystore loaded {}", this.path);
                     keyStore.load(fis, password);
                 }
             } else {
+                log.debug("New keystore loaded {}", this.path);
                 keyStore.load(null, password); // Initialize new keystore
             }
 
@@ -96,7 +98,7 @@ public class KeyStoreService {
             // Store the updated keystore to file
             try (FileOutputStream fos = new FileOutputStream(path.toFile())) {
                 keyStore.store(fos, password);
-                log.info("Keystore successfully saved/updated at {}", this.path);
+                log.info("Keystore successfully saved / updated at {}", this.path);
             }
         } catch (Exception e) {
             log.error("Failed to write private key entry '{}' to key store: {}", alias, this.path, e);
@@ -151,7 +153,7 @@ public class KeyStoreService {
             // Re-throw KeyStoreException directly as it is part of the method signature
             throw e;
         } catch (Exception e) {
-            log.error("Failed to read private key from key store: {}", this.path, e);
+            log.error("Failed to read private key from key store {}", this.path, e);
             throw new CryptographicException("Failed to read private key from key store.", e);
         } finally {
             // Clear the transient password array copy

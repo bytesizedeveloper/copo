@@ -5,6 +5,7 @@ import org.acme.common.service.KeyStoreService;
 import org.acme.common.utility.HashUtility;
 import org.acme.common.utility.KeyPairUtility;
 import org.acme.wallet.model.WalletModel;
+import org.acme.wallet.repository.WalletRepository;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,13 +24,16 @@ import java.util.HexFormat;
 public class WalletServiceTest {
 
     @Mock
+    WalletRepository walletRepository;
+
+    @Mock
     KeyStoreService keyStoreService;
 
     @InjectMocks
     WalletService walletService;
 
     @Test
-    public void testCreate_success_returnsWalletModelAndPersistsKey() throws Exception {
+    public void testCreate_returnsWalletModelAndPersistsKey() throws Exception {
         // Given
         KeyPair keyPair = KeyPairGenerator.getInstance("ML-DSA-87", "BC").generateKeyPair();
 
@@ -50,6 +54,8 @@ public class WalletServiceTest {
             hashUtilityMock.when(() -> HashUtility.calculateBLAKE2b256(sha256)).thenReturn(blake2b);
             hashUtilityMock.when(() -> HashUtility.bytesToHex(blake2b)).thenReturn(hex);
 
+            Mockito.when(walletRepository.exists(address)).thenReturn(false);
+
             // Then
             WalletModel result = walletService.create();
 
@@ -58,8 +64,44 @@ public class WalletServiceTest {
                     Mockito.eq(address)
             );
 
+            Mockito.verify(walletRepository, Mockito.times(1)).insert(Mockito.any(WalletModel.class));
+
             Assertions.assertEquals(address, result.getAddress(), "Wallet address should match the derived hash.");
             Assertions.assertEquals(keyPair, result.getKeyPair(), "WalletModel should contain the generated KeyPair.");
+        }
+    }
+
+    @Test
+    public void testCreate_collisionDetected() throws Exception {
+        // Given
+        KeyPair keyPair = KeyPairGenerator.getInstance("ML-DSA-87", "BC").generateKeyPair();
+
+        try (MockedStatic<KeyPairUtility> keyPairUtilityMock = Mockito.mockStatic(KeyPairUtility.class);
+             MockedStatic<HashUtility> hashUtilityMock = Mockito.mockStatic(HashUtility.class)) {
+
+            byte[] publicKeyEncoded = keyPair.getPublic().getEncoded();
+            byte[] sha256 = MessageDigest.getInstance("SHA-256").digest(publicKeyEncoded);
+            byte[] blake2b = MessageDigest.getInstance("BLAKE2b-256").digest(sha256);
+            String hex = HexFormat.of().formatHex(blake2b).toLowerCase();
+
+            String address = "COPO_" + hex;
+
+            // When
+            keyPairUtilityMock.when(KeyPairUtility::generateKeyPair).thenReturn(keyPair);
+
+            hashUtilityMock.when(() -> HashUtility.calculateSHA256(publicKeyEncoded)).thenReturn(sha256);
+            hashUtilityMock.when(() -> HashUtility.calculateBLAKE2b256(sha256)).thenReturn(blake2b);
+            hashUtilityMock.when(() -> HashUtility.bytesToHex(blake2b)).thenReturn(hex);
+
+            Mockito.when(walletRepository.exists(address)).thenReturn(true);
+
+            // Then
+            Exception thrown = Assertions.assertThrows(Exception.class, () -> walletService.create(), "The exception thrown due to the collision must be re-thrown by WalletService.");
+
+            Assertions.assertTrue(thrown instanceof IllegalStateException, "The re-thrown exception should be the original exception.");
+
+            Mockito.verify(keyStoreService, Mockito.never()).writePrivateKeyToKeyStore(Mockito.any(), Mockito.any());
+            Mockito.verify(walletRepository, Mockito.never()).insert(Mockito.any());
         }
     }
 
@@ -76,6 +118,10 @@ public class WalletServiceTest {
             Exception thrown = Assertions.assertThrows(Exception.class, () -> walletService.create(), "The exception thrown by KeyPairUtility must be re-thrown by WalletService.");
 
             Assertions.assertEquals(exception, thrown, "The re-thrown exception should be the original exception.");
+
+            Mockito.verify(walletRepository, Mockito.never()).exists(Mockito.any());
+            Mockito.verify(keyStoreService, Mockito.never()).writePrivateKeyToKeyStore(Mockito.any(), Mockito.any());
+            Mockito.verify(walletRepository, Mockito.never()).insert(Mockito.any());
         }
     }
 
@@ -93,5 +139,7 @@ public class WalletServiceTest {
         Exception thrown = Assertions.assertThrows(Exception.class, () -> walletService.create(), "The exception thrown by KeyStoreService must be re-thrown by WalletService.");
 
         Assertions.assertEquals(exception, thrown, "The re-thrown exception should be the original exception.");
+
+        Mockito.verify(walletRepository, Mockito.never()).insert(Mockito.any());
     }
 }

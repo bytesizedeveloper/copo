@@ -4,12 +4,14 @@ import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
 import jakarta.ws.rs.core.Response;
-import org.acme.test_utility.WalletTestUtility;
+import org.acme.test_common.test_data.WalletTestData;
 import org.acme.wallet.model.WalletModel;
 import org.acme.wallet.service.WalletService;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+
+import java.util.Base64;
 
 import static io.restassured.RestAssured.given;
 
@@ -24,9 +26,7 @@ public class WalletResourceTest {
 
     @Test
     public void testCreate_validRequest_returns201() {
-        WalletModel wallet = WalletTestUtility.wallet;
-
-        String expectedAddress = WalletTestUtility.address;
+        WalletModel wallet = WalletTestData.getWallet();
 
         Mockito.when(walletService.create()).thenReturn(wallet);
 
@@ -36,14 +36,14 @@ public class WalletResourceTest {
                 .post(URL)
                 .then()
                 .statusCode(Response.Status.CREATED.getStatusCode())
-                .body("address", Matchers.equalTo(expectedAddress))
-                .body("public_key", Matchers.notNullValue());
+                .body("address", Matchers.equalTo(WalletTestData.ADDRESS_ALPHA))
+                .body("public_key", Matchers.equalTo(Base64.getEncoder().encodeToString(WalletTestData.KEYPAIR_ALPHA.getPublic().getEncoded())));
 
         Mockito.verify(walletService, Mockito.times(1)).create();
     }
 
     @Test
-    public void testCreate_exception_returns500() {
+    public void testCreate_runtimeException_returns500() {
         Mockito.when(walletService.create()).thenThrow(RuntimeException.class);
 
         given()

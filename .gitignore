@@ -42,3 +42,6 @@ nb-configuration.xml
 
 # Keystore
 *.p12
+
+# JOOQ Generated Classes
+/src/generated/java/

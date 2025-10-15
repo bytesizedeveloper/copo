@@ -3,7 +3,6 @@ package org.acme.wallet.api.resource;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
@@ -23,15 +22,20 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
  */
 @Slf4j
 @ApplicationScoped
-@Path("/v1/wallet")
 @RegisterForReflection
+@Tag(name = "Wallet Management", description = "Operations related to user wallets.")
+@Path("/v1/wallet")
 public class WalletResource {
 
     /**
      * Injected service containing the core business logic for wallet creation and management.
      */
+    private final WalletService walletService;
+
     @Inject
-    private WalletService walletService;
+    public WalletResource(WalletService walletService) {
+        this.walletService = walletService;
+    }
 
     /**
      * Handles the HTTP POST request to create a new wallet.
@@ -47,15 +51,13 @@ public class WalletResource {
      * </ul>
      */
     @POST
-    @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
-    @Tag(name = "Wallet Resource", description = "Create a wallet JAX-RS endpoint.")
     @Path("/new")
     public Response create() {
         try {
             WalletResponse response = WalletMapper.INSTANCE.modelToResponse(walletService.create());
 
-            log.info("Successfully created wallet: {}", response);
+            log.info("Successfully created and persisted new wallet: {}", response.getAddress());
             return Response.status(Response.Status.CREATED).entity(response).build();
         } catch (Exception e) {
             log.error("Failed to create wallet due to an unexpected exception: {}", e.getMessage(), e);

@@ -1,0 +1,42 @@
+-- Wallet table
+
+CREATE TABLE wallet (
+    id BIGSERIAL PRIMARY KEY,
+    address VARCHAR(69) UNIQUE NOT NULL,
+    public_key_encoded BYTEA NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX wallet_address_idx ON wallet(address);
+
+-- Transaction table
+
+CREATE TABLE transaction (
+    id BIGSERIAL PRIMARY KEY,
+    hash_id VARCHAR(64) UNIQUE NOT NULL,
+    sender_address VARCHAR(69) NOT NULL,
+    recipient_address VARCHAR(69) NOT NULL,
+    amount DECIMAL(15, 6) NOT NULL,
+    fee DECIMAL(15, 6) NOT NULL,
+    type VARCHAR(12) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+    signature VARCHAR NOT NULL
+);
+
+CREATE INDEX transaction_hash_id_idx ON transaction(hash_id);
+
+-- UTXO table
+
+CREATE TABLE utxo (
+    id BIGSERIAL PRIMARY KEY,
+    transaction_hash_id VARCHAR(64) NOT NULL,
+    output_index VARCHAR(2) NOT NULL,
+    recipient_address VARCHAR(69) NOT NULL,
+    amount DECIMAL(15, 6) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+    is_spent BOOLEAN NOT NULL
+);
+
+CREATE INDEX utxo_recipient_address_idx ON utxo(recipient_address);
+
+CREATE INDEX utxo_is_spent_idx ON utxo(is_spent);
