@@ -3,6 +3,7 @@ package org.acme.blockchain.transaction.service.validator.reward;
 import org.acme.blockchain.transaction.model.TransactionModel;
 import org.acme.blockchain.transaction.model.TransactionValidationModel;
 import org.acme.blockchain.transaction.model.UtxoModel;
+import org.acme.blockchain.transaction.model.enumeration.OutputIndex;
 import org.acme.blockchain.transaction.service.validator.RewardValidator;
 import jakarta.enterprise.context.ApplicationScoped;
 
@@ -31,9 +32,9 @@ public class RewardOutputsValidator implements RewardValidator {
                         + transaction.getHashId() + "): " + output.getTransactionHashId());
             }
 
-            if (!UtxoModel.OUTPUT_INDEX_RECIPIENT.equals(output.getOutputIndex())) {
+            if (!OutputIndex.RECIPIENT.getIndex().equals(output.getOutputIndex())) {
                 validationResult.addFailure(output + " Output index does not equal recipient output index ("
-                        + UtxoModel.OUTPUT_INDEX_RECIPIENT + "): " + output.getOutputIndex());
+                        + OutputIndex.RECIPIENT.getIndex() + "): " + output.getOutputIndex());
             }
 
             if (!transaction.getRecipientAddress().equals(output.getRecipientAddress())) {

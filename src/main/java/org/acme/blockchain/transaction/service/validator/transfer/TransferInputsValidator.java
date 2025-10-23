@@ -1,10 +1,11 @@
 package org.acme.blockchain.transaction.service.validator.transfer;
 
 import org.acme.blockchain.common.service.TransactionCacheService;
-import org.acme.blockchain.transaction.model.CoinModel;
+import org.acme.blockchain.common.model.CoinModel;
 import org.acme.blockchain.transaction.model.TransactionModel;
 import org.acme.blockchain.transaction.model.TransactionValidationModel;
 import org.acme.blockchain.transaction.model.UtxoModel;
+import org.acme.blockchain.transaction.model.enumeration.OutputIndex;
 import org.acme.blockchain.transaction.repository.UtxoRepository;
 import org.acme.blockchain.transaction.service.validator.TransferValidator;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -64,24 +65,14 @@ public class TransferInputsValidator implements TransferValidator {
                         break;
                     }
 
-                    if (!(UtxoModel.OUTPUT_INDEX_RECIPIENT.equals(input.getOutputIndex())
-                            || UtxoModel.OUTPUT_INDEX_SENDER.equals(input.getOutputIndex()))) {
+                    if (!(OutputIndex.RECIPIENT.getIndex().equals(input.getOutputIndex())
+                            || OutputIndex.SENDER.getIndex().equals(input.getOutputIndex()))) {
                         validationResult.addFailure(input + " Input output index invalid format (00 or 01): " + input.getOutputIndex());
                     }
 
                     if (!transaction.getSenderAddress().equals(input.getRecipientAddress())) {
                         validationResult.addFailure(input + " Input recipient does not equal transaction sender ("
                                 + transaction.getSenderAddress() + "): " + input.getRecipientAddress());
-                    }
-
-                    if (input.getAmount().isLessThanMinimum()) {
-                        validationResult.addFailure(input + " Input amount does not exceed or is equal to the minimum value ("
-                                + CoinModel.MINIMUM + "): " + input.getAmount());
-                    }
-
-                    if (input.getAmount().isGreaterThanMaximum()) {
-                        validationResult.addFailure(input + " Input amount exceeds or is equal to the maximum value ("
-                                + CoinModel.MAXIMUM + "): " + input.getAmount());
                     }
 
                     if (transaction.getCreatedAt().isBefore(input.getCreatedAt())) {

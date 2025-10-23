@@ -3,13 +3,15 @@ package org.acme.blockchain.transaction.model;
 import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import org.acme.blockchain.common.model.AddressModel;
+import org.acme.blockchain.common.model.CoinModel;
 
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.temporal.ChronoUnit;
 
 /**
- * Represents an Unspent Transaction Output (UTXO), the fundamental unit of value
+ * Represents an Unspent Transaction Output (UTXO), the fundamental unit of address
  * and accounting in the COPO blockchain.
  * <p>
  * A UTXO is a record created by a transaction that denotes a certain amount of currency
@@ -19,10 +21,6 @@ import java.time.temporal.ChronoUnit;
 @Data
 @Builder(toBuilder = true)
 public class UtxoModel {
-
-    public static final String OUTPUT_INDEX_RECIPIENT = "00";
-
-    public static final String OUTPUT_INDEX_SENDER = "01";
 
     /**
      * Primary key of the UTXO record in the local database. Not part of the blockchain state.
@@ -43,10 +41,10 @@ public class UtxoModel {
     /**
      * The address that is authorized to spend this output.
      */
-    private String recipientAddress;
+    private AddressModel recipientAddress;
 
     /**
-     * The monetary value contained within this output. Excluded from {@code equals}/{@code hashCode}
+     * The monetary address contained within this output. Excluded from {@code equals}/{@code hashCode}
      * by default to use the custom, precise comparison method {@code getAmountForEquals()}.
      */
     private CoinModel amount;
@@ -60,7 +58,7 @@ public class UtxoModel {
 
     /**
      * Flag indicating whether this UTXO has been consumed (spent) as an input in a subsequent transaction.
-     * {@code true} means the value is no longer available.
+     * {@code true} means the address is no longer available.
      */
     private boolean isSpent;
 
@@ -86,7 +84,7 @@ public class UtxoModel {
         return format.formatted(
                 this.transactionHashId != null ? this.transactionHashId.substring(0, 21) : "[NOT CALCULATED]",
                 this.outputIndex,
-                this.recipientAddress.substring(0, 21),
+                this.recipientAddress,
                 this.amount
         );
     }
@@ -98,7 +96,7 @@ public class UtxoModel {
      * very close in time (but not exactly the same nanosecond) are considered equal if they are
      * logically the same instance.
      *
-     * @return The truncated Instant value, or null.
+     * @return The truncated Instant address, or null.
      */
     @EqualsAndHashCode.Include
     private Instant getCreatedAtForEquals() {

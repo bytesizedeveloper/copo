@@ -1,6 +1,8 @@
 package org.acme.blockchain.transaction.mapper;
 
 import jooq.tables.records.TransactionRecord;
+import org.acme.blockchain.common.mapper.AddressMapper;
+import org.acme.blockchain.common.mapper.CoinMapper;
 import org.acme.blockchain.transaction.api.contract.TransactionRequest;
 import org.acme.blockchain.transaction.api.contract.TransactionResponse;
 import org.acme.blockchain.transaction.model.TransactionModel;
@@ -14,7 +16,7 @@ import org.mapstruct.factory.Mappers;
  * <p>
  * This mapper delegates the conversion of input and output lists to the {@code UtxoMapper}.
  */
-@Mapper(uses = {CoinMapper.class, UtxoMapper.class})
+@Mapper(uses = {AddressMapper.class, CoinMapper.class, UtxoMapper.class})
 public interface TransactionMapper {
 
     /**

@@ -1,9 +1,10 @@
 package org.acme.blockchain.transaction.service.validator.transfer;
 
-import org.acme.blockchain.transaction.model.CoinModel;
+import org.acme.blockchain.common.model.CoinModel;
 import org.acme.blockchain.transaction.model.TransactionModel;
 import org.acme.blockchain.transaction.model.TransactionValidationModel;
 import org.acme.blockchain.transaction.model.UtxoModel;
+import org.acme.blockchain.transaction.model.enumeration.OutputIndex;
 import org.acme.blockchain.transaction.service.validator.TransferValidator;
 import jakarta.enterprise.context.ApplicationScoped;
 import lombok.extern.slf4j.Slf4j;
@@ -50,9 +51,9 @@ public class TransferOutputsValidator implements TransferValidator {
                     + transaction.getHashId() + "): " + output.getTransactionHashId());
         }
 
-        if (!UtxoModel.OUTPUT_INDEX_RECIPIENT.equals(output.getOutputIndex())) {
+        if (!OutputIndex.RECIPIENT.getIndex().equals(output.getOutputIndex())) {
             validationResult.addFailure(output + " Output index does not equal recipient output index ("
-                    + UtxoModel.OUTPUT_INDEX_RECIPIENT + "): " + output.getOutputIndex());
+                    + OutputIndex.RECIPIENT.getIndex() + "): " + output.getOutputIndex());
         }
 
         if (!transaction.getRecipientAddress().equals(output.getRecipientAddress())) {
@@ -85,9 +86,9 @@ public class TransferOutputsValidator implements TransferValidator {
                     + transaction.getHashId() + "): " + output.getTransactionHashId());
         }
 
-        if (!UtxoModel.OUTPUT_INDEX_SENDER.equals(output.getOutputIndex())) {
+        if (!OutputIndex.SENDER.getIndex().equals(output.getOutputIndex())) {
             validationResult.addFailure(output + " Output index does not equal sender output index ("
-                    + UtxoModel.OUTPUT_INDEX_SENDER + "): " + output.getOutputIndex());
+                    + OutputIndex.SENDER.getIndex() + "): " + output.getOutputIndex());
         }
 
         if (!transaction.getSenderAddress().equals(output.getRecipientAddress())) {

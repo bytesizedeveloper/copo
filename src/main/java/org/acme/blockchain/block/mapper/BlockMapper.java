@@ -2,7 +2,7 @@ package org.acme.blockchain.block.mapper;
 
 import org.acme.blockchain.block.api.contract.BlockResponse;
 import org.acme.blockchain.block.model.BlockModel;
-import org.acme.blockchain.transaction.mapper.CoinMapper;
+import org.acme.blockchain.common.mapper.CoinMapper;
 import org.acme.blockchain.transaction.mapper.TransactionMapper;
 import jooq.tables.records.BlockRecord;
 import org.mapstruct.Mapper;

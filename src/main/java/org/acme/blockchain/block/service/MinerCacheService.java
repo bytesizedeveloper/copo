@@ -3,6 +3,7 @@ package org.acme.blockchain.block.service;
 import io.vertx.core.impl.ConcurrentHashSet;
 import jakarta.enterprise.context.ApplicationScoped;
 import lombok.Getter;
+import org.acme.blockchain.common.model.AddressModel;
 
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -24,7 +25,7 @@ public class MinerCacheService {
      * should receive the next PoW task.
      */
     @Getter
-    private final Set<String> isMining = new ConcurrentHashSet<>();
+    private final Set<AddressModel> isMining = new ConcurrentHashSet<>();
 
     /**
      * An atomic flag used to indicate whether the current mining block has already been
@@ -38,7 +39,7 @@ public class MinerCacheService {
      *
      * @param address The public wallet address to register for mining.
      */
-    public void add(String address) {
+    public void add(AddressModel address) {
         this.isMining.add(address);
     }
 
@@ -47,7 +48,7 @@ public class MinerCacheService {
      *
      * @param address The public wallet address to remove (i.e., stop mining).
      */
-    public void remove(String address) {
+    public void remove(AddressModel address) {
         this.isMining.remove(address);
     }
 
@@ -57,7 +58,7 @@ public class MinerCacheService {
      * @param address The public wallet address to check.
      * @return {@code true} if the address is currently mining, {@code false} otherwise.
      */
-    public boolean contains(String address) {
+    public boolean contains(AddressModel address) {
         return this.isMining.contains(address);
     }
 
@@ -67,7 +68,7 @@ public class MinerCacheService {
      * Typically set to {@code true} when a block is successfully mined locally or received
      * from the network, signaling all running mining threads to stop their current PoW attempt.
      *
-     * @param value The new value for the flag (e.g., {@code true} to signal a solved block).
+     * @param value The new address for the flag (e.g., {@code true} to signal a solved block).
      */
     public void setIsPulseMined(boolean value) {
         this.isPulseMined.set(value);

@@ -15,9 +15,9 @@ import static io.restassured.RestAssured.given;
 @QuarkusTest
 public class MinerResourceTest {
 
-    private static final String URL_START = "/v1/miner/" + WalletTestData.ADDRESS_ALPHA + "/start";
+    private static final String URL_START = "/v1/miner/" + WalletTestData.ADDRESS_ALPHA.value() + "/start";
 
-    private static final String URL_STOP = "/v1/miner/" + WalletTestData.ADDRESS_ALPHA + "/stop";
+    private static final String URL_STOP = "/v1/miner/" + WalletTestData.ADDRESS_ALPHA.value() + "/stop";
 
     @InjectMock
     MinerService minerService;

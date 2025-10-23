@@ -32,6 +32,7 @@ CREATE TABLE transaction (
     hash_id VARCHAR(64) UNIQUE NOT NULL,
     sender_address VARCHAR(69) NOT NULL,
     recipient_address VARCHAR(69) NOT NULL,
+    sender_public_key_encoded BYTEA NOT NULL,
     amount DECIMAL(17, 8) NOT NULL,
     fee DECIMAL(17, 8) NOT NULL,
     type VARCHAR(12) NOT NULL,

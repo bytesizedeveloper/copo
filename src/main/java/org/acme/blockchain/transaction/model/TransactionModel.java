@@ -3,6 +3,8 @@ package org.acme.blockchain.transaction.model;
 import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import org.acme.blockchain.common.model.AddressModel;
+import org.acme.blockchain.common.model.CoinModel;
 import org.acme.blockchain.common.utility.HashUtility;
 import org.acme.blockchain.transaction.model.enumeration.TransactionStatus;
 import org.acme.blockchain.transaction.model.enumeration.TransactionType;
@@ -11,12 +13,13 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.Arrays;
 import java.util.List;
 
 /**
  * The core domain model representing a single transaction in the blockchain.
  * <p>
- * A transaction defines a transfer of value (or creation of value, in the case of a reward)
+ * A transaction defines a transfer of address (or creation of address, in the case of a reward)
  * from a set of inputs (UTXOs) to a set of outputs (new UTXOs). It is uniquely identified by
  * its cryptographic hash and secured by a digital signature.
  */
@@ -38,12 +41,14 @@ public class TransactionModel {
     /**
      * The address initiating the transaction (the spender).
      */
-    private String senderAddress;
+    private AddressModel senderAddress;
 
     /**
      * The address receiving the main transaction amount.
      */
-    private String recipientAddress;
+    private AddressModel recipientAddress;
+
+    byte[] senderPublicKeyEncoded;
 
     /**
      * The principal monetary amount being transferred to the recipient.
@@ -101,14 +106,15 @@ public class TransactionModel {
     /**
      * Concatenates the core immutable fields of the transaction into a single string for hashing.
      * <p>
-     * Note: This method must include all fields that define the transaction's identity and value
+     * Note: This method must include all fields that define the transaction's identity and address
      * but *must not* include the {@code hashId} or {@code signature} itself.
      *
      * @return The concatenated string of transaction data used for hashing.
      */
     public String getData() {
-        return this.senderAddress +
-                this.recipientAddress +
+        return this.senderAddress.value() +
+                this.recipientAddress.value() +
+                Arrays.toString(this.senderPublicKeyEncoded) +
                 this.amount.value() +
                 this.fee +
                 this.type +
@@ -158,8 +164,8 @@ public class TransactionModel {
                 %s | %s -> %s : %s #""";
         return format.formatted(
                 this.hashId != null ? this.hashId.substring(0, 16) : "[NOT CALCULATED]",
-                this.senderAddress.substring(0, 21),
-                this.recipientAddress.substring(0, 21),
+                this.senderAddress,
+                this.recipientAddress,
                 this.amount
         );
     }
@@ -179,7 +185,7 @@ public class TransactionModel {
      * Truncates the timestamp to millisecond precision to ensure two transactions created close
      * in time (but not the exact nanosecond) are considered equal if they are logically the same instance.
      *
-     * @return The truncated Instant value, or null.
+     * @return The truncated Instant address, or null.
      */
     @EqualsAndHashCode.Include
     private Instant getCreatedAtForEquals() {

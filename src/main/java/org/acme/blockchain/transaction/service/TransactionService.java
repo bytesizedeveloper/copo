@@ -2,11 +2,13 @@ package org.acme.blockchain.transaction.service;
 
 import org.acme.blockchain.common.exception.CryptographicException;
 import org.acme.blockchain.common.exception.InsufficientBalanceException;
+import org.acme.blockchain.common.model.AddressModel;
 import org.acme.blockchain.common.service.FeeService;
 import org.acme.blockchain.common.utility.TimestampUtility;
-import org.acme.blockchain.transaction.model.CoinModel;
+import org.acme.blockchain.common.model.CoinModel;
 import org.acme.blockchain.transaction.model.TransactionModel;
 import org.acme.blockchain.transaction.model.UtxoModel;
+import org.acme.blockchain.transaction.model.enumeration.OutputIndex;
 import org.acme.blockchain.transaction.model.enumeration.TransactionStatus;
 import org.acme.blockchain.transaction.model.enumeration.TransactionType;
 import org.acme.blockchain.transaction.repository.UtxoRepository;
@@ -47,7 +49,6 @@ public class TransactionService {
      * for dependency finality.
      *
      * @param walletService The service responsible for cryptographic signing of transactions.
-     * @param transactionRepository The repository for managing the state of transactions.
      * @param utxoRepository The repository for managing the state of Unspent Transaction Outputs (UTXOs).
      */
     @Inject
@@ -87,7 +88,7 @@ public class TransactionService {
      * @param amount The amount of the reward.
      * @return The fully initialized, signed, and updated {@link TransactionModel}.
      */
-    public TransactionModel createReward(String address, CoinModel amount) {
+    public TransactionModel createReward(AddressModel address, CoinModel amount) {
         TransactionModel reward = TransactionModel.builder()
                 .senderAddress(address)
                 .recipientAddress(address)
@@ -112,6 +113,9 @@ public class TransactionService {
      */
     private TransactionModel create(TransactionModel transaction) {
         OffsetDateTime now = TimestampUtility.getOffsetDateTimeNow();
+
+        byte[] senderPublicKeyEncoded = walletService.getPublicKeyEncoded(transaction.getSenderAddress());
+        transaction.setSenderPublicKeyEncoded(senderPublicKeyEncoded);
 
         CoinModel fee = new CoinModel(BigDecimal.ZERO);
         List<UtxoModel> inputs = new ArrayList<>();
@@ -155,9 +159,9 @@ public class TransactionService {
             log.error("{} Transaction failed - sender has insufficient balance: {}\n{}", transaction, transaction.getSenderAddress(), e.getMessage());
             throw e;
 
-        } catch (KeyStoreException e) {
-            log.error("{} Transaction failed - keystore failure: {}", transaction, e.getMessage());
-            throw new IllegalStateException("Keystore failure - cannot access private key for signing.", e);
+//        } catch (KeyStoreException e) {
+//            log.error("{} Transaction failed - keystore failure: {}", transaction, e.getMessage());
+//            throw new IllegalStateException("Keystore failure - cannot access private key for signing.", e);
 
         } catch (CryptographicException e) {
             log.error("{} Transaction failed - cryptography exception: {}", transaction, e.getMessage());
@@ -177,7 +181,7 @@ public class TransactionService {
      */
     private List<UtxoModel> determineInputs(TransactionModel transaction) throws InsufficientBalanceException {
         // Retrieve all available unspent UTXOs for the sender
-        List<UtxoModel> unspentUtxos = utxoRepository.retrieveUnspentUtxosByRecipientAddress(transaction.getSenderAddress());
+        List<UtxoModel> unspentUtxos = utxoRepository.retrieveUnspentUtxosByRecipientAddress(transaction.getSenderAddress().value());
 
         CoinModel totalRequired = transaction.getTotalRequired();
 
@@ -228,7 +232,7 @@ public class TransactionService {
 
         // Output for the recipient (index 00)
         UtxoModel utxoForRecipient = UtxoModel.builder()
-                .outputIndex(UtxoModel.OUTPUT_INDEX_RECIPIENT)
+                .outputIndex(OutputIndex.RECIPIENT.getIndex())
                 .recipientAddress(transfer.getRecipientAddress())
                 .amount(transfer.getAmount())
                 .createdAt(now)
@@ -239,7 +243,7 @@ public class TransactionService {
         // Output for the change back to the sender (index 01, only if positive)
         if (change.isPositive()) {
             UtxoModel changeForSender = UtxoModel.builder()
-                    .outputIndex(UtxoModel.OUTPUT_INDEX_SENDER)
+                    .outputIndex(OutputIndex.SENDER.getIndex())
                     .recipientAddress(transfer.getSenderAddress())
                     .amount(change)
                     .createdAt(now)
@@ -260,7 +264,7 @@ public class TransactionService {
      */
     private List<UtxoModel> generateOutputForReward(TransactionModel reward, OffsetDateTime now) {
         UtxoModel output = UtxoModel.builder()
-                .outputIndex(UtxoModel.OUTPUT_INDEX_RECIPIENT)
+                .outputIndex(OutputIndex.RECIPIENT.getIndex())
                 .recipientAddress(reward.getRecipientAddress())
                 .amount(reward.getAmount())
                 .createdAt(now)

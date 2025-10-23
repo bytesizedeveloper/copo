@@ -11,6 +11,7 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
+import org.acme.blockchain.common.model.AddressModel;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 /**
@@ -60,7 +61,7 @@ public class MinerResource {
     @Path("/{address}/start")
     public Response start(@PathParam("address") String address) {
         try {
-            if (minerService.startMining(address)) {
+            if (minerService.startMining(new AddressModel(address))) {
                 log.info("{} Successfully started mining.", address);
                 return Response.status(Response.Status.ACCEPTED).entity("Successfully started mining.").build();
             } else {
@@ -91,7 +92,7 @@ public class MinerResource {
     @Path("/{address}/stop")
     public Response stop(@PathParam("address") String address) {
         try {
-            if (minerService.stopMining(address)) {
+            if (minerService.stopMining(new AddressModel(address))) {
                 log.info("{} Successfully stopped mining.", address);
                 return Response.status(Response.Status.ACCEPTED).entity("Successfully stopped mining.").build();
             } else {

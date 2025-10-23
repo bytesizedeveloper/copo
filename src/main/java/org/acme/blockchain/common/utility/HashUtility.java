@@ -1,5 +1,6 @@
 package org.acme.blockchain.common.utility;
 
+import org.acme.blockchain.common.exception.CryptographicException;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
 import java.nio.charset.StandardCharsets;
@@ -81,7 +82,7 @@ public final class HashUtility {
      * @param input The byte array to be hashed. Must not be null.
      * @return The 256-bit SHA-256 hash as a 32-byte array.
      * @throws IllegalArgumentException if the input byte array is null.
-     * @throws IllegalStateException if the {@code SHA-256} algorithm is unexpectedly unavailable at runtime.
+     * @throws CryptographicException if the {@code SHA-256} algorithm is unexpectedly unavailable at runtime.
      */
     public static byte[] calculateSHA256(byte[] input) {
         if (input == null) {
@@ -92,7 +93,7 @@ public final class HashUtility {
             MessageDigest digest = MessageDigest.getInstance(SHA_256_HASH_ALGORITHM);
             return digest.digest(input);
         } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException(SHA_256_HASH_ALGORITHM + " algorithm unexpectedly unavailable at runtime.", e);
+            throw new CryptographicException(SHA_256_HASH_ALGORITHM + " algorithm unexpectedly unavailable at runtime.", e);
         }
     }
 
@@ -104,7 +105,7 @@ public final class HashUtility {
      * Must not be null.
      * @return The 256-bit BLAKE2b hash as a 32-byte array.
      * @throws IllegalArgumentException if the input byte array is null.
-     * @throws IllegalStateException if the Bouncy Castle provider or the underlying
+     * @throws CryptographicException if the Bouncy Castle provider or the underlying
      * {@code BLAKE2b-256} algorithm is unavailable at runtime, indicating a
      * misconfigured security environment.
      */
@@ -117,8 +118,7 @@ public final class HashUtility {
             MessageDigest digest = MessageDigest.getInstance(BLAKE2B_HASH_ALGORITHM, BC_PROVIDER);
             return digest.digest(input);
         } catch (NoSuchAlgorithmException | java.security.NoSuchProviderException e) {
-            throw new IllegalStateException(BLAKE2B_HASH_ALGORITHM
-                    + " algorithm is unavailable, likely because the Bouncy Castle provider is not correctly configured.", e);
+            throw new CryptographicException(BLAKE2B_HASH_ALGORITHM + " algorithm unexpectedly unavailable at runtime.", e);
         }
     }
 
@@ -132,7 +132,7 @@ public final class HashUtility {
      */
     public static String bytesToHex(byte[] hash) {
         if (hash == null) {
-            throw new IllegalArgumentException("Byte array input for conversion cannot be null.");
+            throw new IllegalArgumentException("Input byte array cannot be null.");
         }
         return HexFormat.of().formatHex(hash).toLowerCase();
     }
@@ -147,7 +147,7 @@ public final class HashUtility {
      */
     public static byte[] hexToBytes(String hex) {
         if (hex == null) {
-            throw new IllegalArgumentException("Hex string input for conversion cannot be null.");
+            throw new IllegalArgumentException("Input string cannot be null.");
         }
         return HexFormat.of().parseHex(hex);
     }

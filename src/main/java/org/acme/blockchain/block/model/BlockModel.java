@@ -1,7 +1,7 @@
 package org.acme.blockchain.block.model;
 
 import org.acme.blockchain.common.utility.MerkleTreeUtility;
-import org.acme.blockchain.transaction.model.CoinModel;
+import org.acme.blockchain.common.model.CoinModel;
 import org.acme.blockchain.transaction.model.TransactionModel;
 import lombok.Builder;
 import lombok.Data;

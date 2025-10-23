@@ -12,13 +12,13 @@ public class WalletResponseTest extends ObjectMapperBase {
         @Test
         void testJsonMarshalling() throws Exception {
             // Given
-            WalletResponse response = WalletTestData.getResponse();
+            WalletResponse response = WalletTestData.getResponseAlpha();
 
             String expected = """
                     {"address":"%s","public_key":"%s","created_at":"%s"}"""
                     .formatted(
-                            WalletTestData.ADDRESS_ALPHA,
-                            Base64.getEncoder().encodeToString(WalletTestData.getWallet().getPublicKeyEncoded()),
+                            WalletTestData.ADDRESS_ALPHA.value(),
+                            Base64.getEncoder().encodeToString(WalletTestData.getWalletAlpha().publicKeyEncoded()),
                             WalletTestData.NOW.format(DATE_TIME_FORMATTER));
 
             // When

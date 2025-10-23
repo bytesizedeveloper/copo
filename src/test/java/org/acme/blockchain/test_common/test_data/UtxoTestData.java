@@ -1,10 +1,11 @@
 package org.acme.blockchain.test_common.test_data;
 
-import org.acme.blockchain.transaction.model.CoinModel;
+import org.acme.blockchain.common.model.CoinModel;
 import jooq.tables.records.UtxoRecord;
 import org.acme.blockchain.common.utility.TimestampUtility;
 import org.acme.blockchain.transaction.api.contract.UtxoResponse;
 import org.acme.blockchain.transaction.model.UtxoModel;
+import org.acme.blockchain.transaction.model.enumeration.OutputIndex;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -15,9 +16,9 @@ public final class UtxoTestData {
 
     public static final String TRANSACTION_HASH_BETA = "0000000000000000000000000000000000000000000000000000000000000002";
 
-    public static final CoinModel AMOUNT = new CoinModel(BigDecimal.ONE);
+    public static final CoinModel AMOUNT = new CoinModel(BigDecimal.valueOf(9));
 
-    public static final CoinModel REWARD = new CoinModel(BigDecimal.ONE);
+    public static final CoinModel REWARD = new CoinModel(BigDecimal.TEN);
 
     public static final OffsetDateTime NOW = TimestampUtility.getOffsetDateTimeNow();
 
@@ -68,7 +69,7 @@ public final class UtxoTestData {
     private static final UtxoModel INPUT_UTXO_ALPHA = UtxoModel.builder()
             .id(1L)
             .transactionHashId(TRANSACTION_HASH_ALPHA)
-            .outputIndex(UtxoModel.OUTPUT_INDEX_RECIPIENT)
+            .outputIndex(OutputIndex.RECIPIENT.getIndex())
             .recipientAddress(WalletTestData.ADDRESS_ALPHA)
             .amount(AMOUNT)
             .createdAt(NOW)
@@ -78,7 +79,7 @@ public final class UtxoTestData {
     private static final UtxoModel INPUT_UTXO_BETA = UtxoModel.builder()
             .id(2L)
             .transactionHashId(TRANSACTION_HASH_BETA)
-            .outputIndex(UtxoModel.OUTPUT_INDEX_RECIPIENT)
+            .outputIndex(OutputIndex.RECIPIENT.getIndex())
             .recipientAddress(WalletTestData.ADDRESS_ALPHA)
             .amount(AMOUNT)
             .createdAt(NOW)
@@ -88,7 +89,7 @@ public final class UtxoTestData {
     private static final UtxoModel OUTPUT_UTXO_RECIPIENT = UtxoModel.builder()
             .id(3L)
             .transactionHashId(TransactionTestData.TRANSACTION_HASH_ID)
-            .outputIndex(UtxoModel.OUTPUT_INDEX_RECIPIENT)
+            .outputIndex(OutputIndex.RECIPIENT.getIndex())
             .recipientAddress(WalletTestData.ADDRESS_BETA)
             .amount(AMOUNT)
             .createdAt(NOW)
@@ -98,7 +99,7 @@ public final class UtxoTestData {
     private static final UtxoModel OUTPUT_UTXO_SENDER = UtxoModel.builder()
             .id(4L)
             .transactionHashId(TransactionTestData.TRANSACTION_HASH_ID)
-            .outputIndex(UtxoModel.OUTPUT_INDEX_SENDER)
+            .outputIndex(OutputIndex.SENDER.getIndex())
             .recipientAddress(WalletTestData.ADDRESS_ALPHA)
             .amount(AMOUNT)
             .createdAt(NOW)
@@ -108,7 +109,7 @@ public final class UtxoTestData {
     private static final UtxoModel REWARD_OUTPUT_UTXO_SENDER = UtxoModel.builder()
             .id(5L)
             .transactionHashId(TransactionTestData.ALPHA_REWARD_HASH_ID)
-            .outputIndex(UtxoModel.OUTPUT_INDEX_RECIPIENT)
+            .outputIndex(OutputIndex.RECIPIENT.getIndex())
             .recipientAddress(WalletTestData.ADDRESS_ALPHA)
             .amount(REWARD)
             .createdAt(NOW)
@@ -117,17 +118,17 @@ public final class UtxoTestData {
 
     private static final UtxoResponse INPUT_RESPONSE_ALPHA = UtxoResponse.builder()
             .transactionHashId(TRANSACTION_HASH_ALPHA)
-            .outputIndex(UtxoModel.OUTPUT_INDEX_RECIPIENT)
-            .recipientAddress(WalletTestData.ADDRESS_ALPHA)
-            .amount(BigDecimal.ONE)
+            .outputIndex(OutputIndex.RECIPIENT.getIndex())
+            .recipientAddress(WalletTestData.ADDRESS_ALPHA.value())
+            .amount(AMOUNT.value())
             .createdAt(NOW)
             .isSpent(true)
             .build();
 
     public static final UtxoResponse INPUT_RESPONSE_BETA = UtxoResponse.builder()
             .transactionHashId(TRANSACTION_HASH_BETA)
-            .outputIndex(UtxoModel.OUTPUT_INDEX_RECIPIENT)
-            .recipientAddress(WalletTestData.ADDRESS_ALPHA)
+            .outputIndex(OutputIndex.RECIPIENT.getIndex())
+            .recipientAddress(WalletTestData.ADDRESS_ALPHA.value())
             .amount(BigDecimal.ONE)
             .createdAt(NOW)
             .isSpent(true)
@@ -135,8 +136,8 @@ public final class UtxoTestData {
 
     private static final UtxoResponse OUTPUT_RESPONSE_RECIPIENT = UtxoResponse.builder()
             .transactionHashId(TransactionTestData.TRANSACTION_HASH_ID)
-            .outputIndex(UtxoModel.OUTPUT_INDEX_RECIPIENT)
-            .recipientAddress(WalletTestData.ADDRESS_BETA)
+            .outputIndex(OutputIndex.RECIPIENT.getIndex())
+            .recipientAddress(WalletTestData.ADDRESS_BETA.value())
             .amount(BigDecimal.ONE)
             .createdAt(NOW)
             .isSpent(false)
@@ -144,8 +145,8 @@ public final class UtxoTestData {
 
     private static final UtxoResponse OUTPUT_RESPONSE_SENDER = UtxoResponse.builder()
             .transactionHashId(TransactionTestData.TRANSACTION_HASH_ID)
-            .outputIndex(UtxoModel.OUTPUT_INDEX_SENDER)
-            .recipientAddress(WalletTestData.ADDRESS_ALPHA)
+            .outputIndex(OutputIndex.SENDER.getIndex())
+            .recipientAddress(WalletTestData.ADDRESS_ALPHA.value())
             .amount(BigDecimal.ONE)
             .createdAt(NOW)
             .isSpent(false)
@@ -154,8 +155,8 @@ public final class UtxoTestData {
     private static final UtxoRecord INPUT_RECORD_ALPHA_PRE_INSERT = new UtxoRecord(
             null,
             TRANSACTION_HASH_ALPHA,
-            UtxoModel.OUTPUT_INDEX_RECIPIENT,
-            WalletTestData.ADDRESS_ALPHA,
+            OutputIndex.RECIPIENT.getIndex(),
+            WalletTestData.ADDRESS_ALPHA.value(),
             AMOUNT.value(),
             NOW,
             true
@@ -164,9 +165,9 @@ public final class UtxoTestData {
     private static final UtxoRecord INPUT_RECORD_ALPHA_POST_INSERT = new UtxoRecord(
             1L,
             TRANSACTION_HASH_ALPHA,
-            UtxoModel.OUTPUT_INDEX_RECIPIENT,
-            WalletTestData.ADDRESS_ALPHA,
-            BigDecimal.ONE,
+            OutputIndex.RECIPIENT.getIndex(),
+            WalletTestData.ADDRESS_ALPHA.value(),
+            AMOUNT.value(),
             NOW,
             true
     );

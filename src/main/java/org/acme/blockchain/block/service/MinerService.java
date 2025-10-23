@@ -1,14 +1,14 @@
 package org.acme.blockchain.block.service;
 
 import org.acme.blockchain.block.model.BlockModel;
+import org.acme.blockchain.common.model.AddressModel;
 import org.acme.blockchain.common.service.DifficultyService;
 import org.acme.blockchain.common.service.RewardService;
 import org.acme.blockchain.common.service.TransactionCacheService;
 import org.acme.blockchain.common.utility.HashUtility;
 import org.acme.blockchain.common.utility.TimestampUtility;
-import org.acme.blockchain.common.utility.WalletUtility;
 import org.acme.blockchain.network.TempNetwork;
-import org.acme.blockchain.transaction.model.CoinModel;
+import org.acme.blockchain.common.model.CoinModel;
 import org.acme.blockchain.transaction.model.TransactionModel;
 import org.acme.blockchain.transaction.service.TransactionService;
 import io.quarkus.scheduler.Scheduled;
@@ -87,11 +87,7 @@ public class MinerService {
      * was already mining.
      * @throws IllegalStateException if the provided wallet address is invalid.
      */
-    public boolean startMining(String address) {
-        if (!WalletUtility.isValid(address)) {
-            throw new IllegalStateException("Invalid wallet address.");
-        }
-
+    public boolean startMining(AddressModel address) {
         if (minerCache.contains(address)) {
             return false;
         }
@@ -108,11 +104,7 @@ public class MinerService {
      * was not found in the active miner list.
      * @throws IllegalStateException if the provided wallet address is invalid.
      */
-    public boolean stopMining(String address) {
-        if (!WalletUtility.isValid(address)) {
-            throw new IllegalStateException("Invalid wallet address.");
-        }
-
+    public boolean stopMining(AddressModel address) {
         if (minerCache.contains(address)) {
             minerCache.remove(address);
             log.info("Miner stopped for address: {}", address);
@@ -130,7 +122,7 @@ public class MinerService {
      */
     @Scheduled(every = "10s")
     public void pulse() {
-        Set<String> activeMiners = minerCache.getIsMining();
+        Set<AddressModel> activeMiners = minerCache.getIsMining();
 
         if (activeMiners.isEmpty()) {
             log.info("No active miners. Sleeping for 10 seconds...");
@@ -146,7 +138,7 @@ public class MinerService {
 
             minerCache.setIsPulseMined(false);
 
-            for (String address : activeMiners) {
+            for (AddressModel address : activeMiners) {
                 Thread.ofVirtual().start(() -> mine(address, toMine.toBuilder()
                         .transactions(new ArrayList<>(transactionsToMine)).build()));
             }
@@ -166,7 +158,7 @@ public class MinerService {
      * @param address The wallet address of the miner attempting to find the nonce.
      * @param toMine The block template containing transactions, previous hash, and difficulty.
      */
-    private void mine(String address, BlockModel toMine) {
+    private void mine(AddressModel address, BlockModel toMine) {
         log.debug("{} Starting mining process.", address);
 
         minerCache.remove(address);

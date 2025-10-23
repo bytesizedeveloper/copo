@@ -1,17 +1,17 @@
 package org.acme.blockchain.block.service;
 
 import org.acme.blockchain.block.model.BlockModel;
+import org.acme.blockchain.common.model.AddressModel;
 import org.acme.blockchain.common.service.DifficultyService;
 import org.acme.blockchain.common.service.RewardService;
 import org.acme.blockchain.common.service.TransactionCacheService;
 import org.acme.blockchain.common.utility.HashUtility;
 import org.acme.blockchain.common.utility.TimestampUtility;
-import org.acme.blockchain.common.utility.WalletUtility;
 import org.acme.blockchain.network.TempNetwork;
 import org.acme.blockchain.test_common.test_data.BlockTestData;
 import org.acme.blockchain.test_common.test_data.TransactionTestData;
 import org.acme.blockchain.test_common.test_data.WalletTestData;
-import org.acme.blockchain.transaction.model.CoinModel;
+import org.acme.blockchain.common.model.CoinModel;
 import org.acme.blockchain.transaction.model.TransactionModel;
 import org.acme.blockchain.transaction.service.TransactionService;
 import org.junit.jupiter.api.Assertions;
@@ -56,120 +56,98 @@ public class MinerServiceTest {
     @Test
     void testStartMining_updatesMinerCache() {
         // Given - miner not active
-        String address = WalletTestData.ADDRESS_ALPHA;
+        AddressModel address = WalletTestData.ADDRESS_ALPHA;
 
-        try (MockedStatic<WalletUtility> walletUtilityMock = Mockito.mockStatic(WalletUtility.class)) {
-            // When
-            walletUtilityMock.when(() -> WalletUtility.isValid(address)).thenReturn(true);
-            Mockito.when(minerCache.contains(address)).thenReturn(false);
+        // When
+        Mockito.when(minerCache.contains(address)).thenReturn(false);
 
-            // Then
-            boolean result = minerService.startMining(address);
+        // Then
+        boolean result = minerService.startMining(address);
 
-            Assertions.assertTrue(result);
-            Mockito.verify(minerCache, Mockito.times(1)).contains(address);
-            Mockito.verify(minerCache, Mockito.times(1)).add(address);
-        }
+        Assertions.assertTrue(result);
+        Mockito.verify(minerCache, Mockito.times(1)).contains(address);
+        Mockito.verify(minerCache, Mockito.times(1)).add(address);
     }
 
     @Test
     void testStartMining_alreadyMining() {
         // Given - miner is already active
-        String address = WalletTestData.ADDRESS_ALPHA;
+        AddressModel address = WalletTestData.ADDRESS_ALPHA;
 
-        try (MockedStatic<WalletUtility> walletUtilityMock = Mockito.mockStatic(WalletUtility.class)) {
-            // When
-            walletUtilityMock.when(() -> WalletUtility.isValid(address)).thenReturn(true);
-            Mockito.when(minerCache.contains(address)).thenReturn(true);
+        // When
+        Mockito.when(minerCache.contains(address)).thenReturn(true);
 
-            // Then
-            boolean result = minerService.startMining(address);
+        // Then
+        boolean result = minerService.startMining(address);
 
-            Assertions.assertFalse(result);
-            Mockito.verify(minerCache, Mockito.times(1)).contains(address);
-            Mockito.verify(minerCache, Mockito.never()).add(address);
-        }
+        Assertions.assertFalse(result);
+        Mockito.verify(minerCache, Mockito.times(1)).contains(address);
+        Mockito.verify(minerCache, Mockito.never()).add(address);
     }
 
     @Test
     void testStartMining_invalidAddress() {
         // Given
-        String address = WalletTestData.ADDRESS_ALPHA;
+        AddressModel address = WalletTestData.ADDRESS_ALPHA;
 
-        try (MockedStatic<WalletUtility> walletUtilityMock = Mockito.mockStatic(WalletUtility.class)) {
-            // When
-            walletUtilityMock.when(() -> WalletUtility.isValid(address)).thenReturn(false);
+        // Then
+        Exception thrown = Assertions.assertThrows(Exception.class, () -> minerService.startMining(address), "The invalid address must throw a IllegalStateException.");
+        Assertions.assertInstanceOf(IllegalStateException.class, thrown);
 
-            // Then
-            Exception thrown = Assertions.assertThrows(Exception.class, () -> minerService.startMining(address), "The invalid address must throw a IllegalStateException.");
-            Assertions.assertInstanceOf(IllegalStateException.class, thrown);
-
-            Mockito.verify(minerCache, Mockito.never()).contains(address);
-            Mockito.verify(minerCache, Mockito.never()).add(address);
-        }
+        Mockito.verify(minerCache, Mockito.never()).contains(address);
+        Mockito.verify(minerCache, Mockito.never()).add(address);
     }
 
     @Test
     void testStopMining_updatesMinerCache() {
         // Given - miner is already active
-        String address = WalletTestData.ADDRESS_ALPHA;
+        AddressModel address = WalletTestData.ADDRESS_ALPHA;
 
-        try (MockedStatic<WalletUtility> walletUtilityMock = Mockito.mockStatic(WalletUtility.class)) {
-            // When
-            walletUtilityMock.when(() -> WalletUtility.isValid(address)).thenReturn(true);
-            Mockito.when(minerCache.contains(address)).thenReturn(true);
+        // When
+        Mockito.when(minerCache.contains(address)).thenReturn(true);
 
-            // Then
-            boolean result = minerService.stopMining(address);
+        // Then
+        boolean result = minerService.stopMining(address);
 
-            Assertions.assertTrue(result);
-            Mockito.verify(minerCache, Mockito.times(1)).contains(address);
-            Mockito.verify(minerCache, Mockito.times(1)).remove(address);
-        }
+        Assertions.assertTrue(result);
+        Mockito.verify(minerCache, Mockito.times(1)).contains(address);
+        Mockito.verify(minerCache, Mockito.times(1)).remove(address);
     }
 
     @Test
     void testStopMining_alreadyStopped() {
         // Given - miner is not active
-        String address = WalletTestData.ADDRESS_ALPHA;
+        AddressModel address = WalletTestData.ADDRESS_ALPHA;
 
-        try (MockedStatic<WalletUtility> walletUtilityMock = Mockito.mockStatic(WalletUtility.class)) {
-            // When
-            walletUtilityMock.when(() -> WalletUtility.isValid(address)).thenReturn(true);
-            Mockito.when(minerCache.contains(address)).thenReturn(false);
+        // When
+        Mockito.when(minerCache.contains(address)).thenReturn(false);
 
-            // Then
-            boolean result = minerService.stopMining(address);
+        // Then
+        boolean result = minerService.stopMining(address);
 
-            Assertions.assertFalse(result);
-            Mockito.verify(minerCache, Mockito.times(1)).contains(address);
-            Mockito.verify(minerCache, Mockito.never()).remove(address);
-        }
+        Assertions.assertFalse(result);
+        Mockito.verify(minerCache, Mockito.times(1)).contains(address);
+        Mockito.verify(minerCache, Mockito.never()).remove(address);
     }
 
     @Test
     void testStopMining_invalidAddress_throwsIllegalStateException() {
         // Given
-        String address = WalletTestData.ADDRESS_ALPHA;
+        AddressModel address = WalletTestData.ADDRESS_ALPHA;
 
-        try (MockedStatic<WalletUtility> walletUtilityMock = Mockito.mockStatic(WalletUtility.class)) {
-            // When
-            walletUtilityMock.when(() -> WalletUtility.isValid(address)).thenReturn(false);
+        // Then
+        Exception thrown = Assertions.assertThrows(Exception.class, () -> minerService.stopMining(address), "The invalid address must throw a IllegalStateException.");
+        Assertions.assertInstanceOf(IllegalStateException.class, thrown);
 
-            // Then
-            Exception thrown = Assertions.assertThrows(Exception.class, () -> minerService.stopMining(address), "The invalid address must throw a IllegalStateException.");
-            Assertions.assertInstanceOf(IllegalStateException.class, thrown);
-
-            Mockito.verify(minerCache, Mockito.never()).contains(address);
-            Mockito.verify(minerCache, Mockito.never()).remove(address);
-        }
+        Mockito.verify(minerCache, Mockito.never()).contains(address);
+        Mockito.verify(minerCache, Mockito.never()).remove(address);
     }
 
     @Test
     void testPulse_singleMiner_blockMinedAndPublished() {
         // Given
-        String address = WalletTestData.ADDRESS_ALPHA;
-        Set<String> activeMiners = Set.of(address);
+        AddressModel address = WalletTestData.ADDRESS_ALPHA;
+        Set<AddressModel> activeMiners = Set.of(address);
 
         BlockModel genesisBlock = BlockTestData.getGenesisBlock();
         int difficulty = BlockTestData.DIFFICULTY;
@@ -223,9 +201,9 @@ public class MinerServiceTest {
     @Test
     void testPulse_multipleMiners_blocksMinedAndPublished() {
         // Given
-        String addressAlpha = WalletTestData.ADDRESS_ALPHA;
-        String addressBeta = WalletTestData.ADDRESS_BETA;
-        Set<String> activeMiners = Set.of(addressAlpha, addressBeta);
+        AddressModel addressAlpha = WalletTestData.ADDRESS_ALPHA;
+        AddressModel addressBeta = WalletTestData.ADDRESS_BETA;
+        Set<AddressModel> activeMiners = Set.of(addressAlpha, addressBeta);
 
         BlockModel genesisBlock = BlockTestData.getGenesisBlock();
         int difficulty = BlockTestData.DIFFICULTY;
@@ -267,23 +245,23 @@ public class MinerServiceTest {
             Mockito.verify(rewardService, Mockito.times(1)).determineRewardAmount();
 
             Mockito.verify(transactionCache, Mockito.times(1)).getReadyToMine();
-            Mockito.verify(minerCache, Mockito.times(2)).remove(Mockito.any(String.class));
+            Mockito.verify(minerCache, Mockito.times(2)).remove(Mockito.any(AddressModel.class));
 
-            Mockito.verify(transactionService, Mockito.times(2)).createReward(Mockito.any(String.class), Mockito.any(CoinModel.class));
+            Mockito.verify(transactionService, Mockito.times(2)).createReward(Mockito.any(AddressModel.class), Mockito.any(CoinModel.class));
 
             Mockito.verify(minerCache, Mockito.atLeast(2)).getIsPulseMined();
             Mockito.verify(minerCache, Mockito.times(2)).setIsPulseMined(true);
 
             Mockito.verify(tempNetwork, Mockito.times(2)).broadcast(Mockito.any(BlockModel.class));
-            Mockito.verify(minerCache, Mockito.times(2)).add(Mockito.any(String.class));
+            Mockito.verify(minerCache, Mockito.times(2)).add(Mockito.any(AddressModel.class));
         }
     }
 
     @Test
     void testPulse_singleMiner_exceptionThrown() {
         // Given
-        String address = WalletTestData.ADDRESS_ALPHA;
-        Set<String> activeMiners = Set.of(address);
+        AddressModel address = WalletTestData.ADDRESS_ALPHA;
+        Set<AddressModel> activeMiners = Set.of(address);
 
         BlockModel genesisBlock = BlockTestData.getGenesisBlock();
         int difficulty = BlockTestData.DIFFICULTY;
@@ -328,7 +306,7 @@ public class MinerServiceTest {
     @Test
     void testPulse_noMiner_blockNotMinedAndPublished() {
         // Given
-        Set<String> activeMiners = Set.of();
+        Set<AddressModel> activeMiners = Set.of();
 
         // When
         Mockito.when(minerCache.getIsMining()).thenReturn(activeMiners);
@@ -344,14 +322,14 @@ public class MinerServiceTest {
         Mockito.verify(rewardService, Mockito.never()).determineRewardAmount();
 
         Mockito.verify(transactionCache, Mockito.never()).getReadyToMine();
-        Mockito.verify(minerCache, Mockito.never()).remove(Mockito.any(String.class));
+        Mockito.verify(minerCache, Mockito.never()).remove(Mockito.any(AddressModel.class));
 
-        Mockito.verify(transactionService, Mockito.never()).createReward(Mockito.any(String.class), Mockito.any(CoinModel.class));
+        Mockito.verify(transactionService, Mockito.never()).createReward(Mockito.any(AddressModel.class), Mockito.any(CoinModel.class));
 
         Mockito.verify(minerCache, Mockito.never()).getIsPulseMined();
         Mockito.verify(minerCache, Mockito.never()).setIsPulseMined(true);
 
         Mockito.verify(tempNetwork, Mockito.never()).broadcast(Mockito.any(BlockModel.class));
-        Mockito.verify(minerCache, Mockito.never()).add(Mockito.any(String.class));
+        Mockito.verify(minerCache, Mockito.never()).add(Mockito.any(AddressModel.class));
     }
 }

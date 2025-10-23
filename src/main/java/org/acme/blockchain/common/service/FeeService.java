@@ -1,6 +1,6 @@
 package org.acme.blockchain.common.service;
 
-import org.acme.blockchain.transaction.model.CoinModel;
+import org.acme.blockchain.common.model.CoinModel;
 import jakarta.enterprise.context.ApplicationScoped;
 
 import java.math.BigDecimal;

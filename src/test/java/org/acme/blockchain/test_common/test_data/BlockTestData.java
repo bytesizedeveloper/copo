@@ -2,7 +2,7 @@ package org.acme.blockchain.test_common.test_data;
 
 import org.acme.blockchain.block.model.BlockModel;
 import org.acme.blockchain.common.utility.TimestampUtility;
-import org.acme.blockchain.transaction.model.CoinModel;
+import org.acme.blockchain.common.model.CoinModel;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;

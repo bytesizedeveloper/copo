@@ -1,6 +1,6 @@
 package org.acme.blockchain.test_common.test_data;
 
-import org.acme.blockchain.transaction.model.CoinModel;
+import org.acme.blockchain.common.model.CoinModel;
 import jooq.tables.records.TransactionRecord;
 import org.acme.blockchain.common.utility.TimestampUtility;
 import org.acme.blockchain.transaction.api.contract.TransactionRequest;
@@ -20,11 +20,11 @@ public final class TransactionTestData {
 
     public static final String BETA_REWARD_HASH_ID = "3000000000000000000000000000000000000000000000000000000000000000";
 
-    public static final CoinModel AMOUNT = new CoinModel(BigDecimal.ONE);
+    public static final CoinModel AMOUNT = new CoinModel(BigDecimal.TEN);
 
-    public static final CoinModel REWARD = new CoinModel(BigDecimal.ONE);
+    public static final CoinModel REWARD = new CoinModel(BigDecimal.TEN);
 
-    public static final CoinModel FEE = new CoinModel(BigDecimal.ZERO);
+    public static final CoinModel FEE = new CoinModel(BigDecimal.ONE);
 
     public static final OffsetDateTime NOW = TimestampUtility.getOffsetDateTimeNow();
 
@@ -63,9 +63,9 @@ public final class TransactionTestData {
     }
 
     private static final TransactionRequest REQUEST = TransactionRequest.builder()
-            .senderAddress(WalletTestData.ADDRESS_ALPHA)
-            .recipientAddress(WalletTestData.ADDRESS_BETA)
-            .amount(BigDecimal.ONE)
+            .senderAddress(WalletTestData.ADDRESS_ALPHA.value())
+            .recipientAddress(WalletTestData.ADDRESS_BETA.value())
+            .amount(AMOUNT.value())
             .build();
 
     private static final TransactionModel TRANSACTION_PRE_INITIALISE = TransactionModel.builder()
@@ -94,7 +94,7 @@ public final class TransactionTestData {
             .senderAddress(WalletTestData.ADDRESS_ALPHA)
             .recipientAddress(WalletTestData.ADDRESS_ALPHA)
             .amount(REWARD)
-            .fee(new CoinModel(BigDecimal.ZERO))
+            .fee(FEE)
             .type(TransactionType.REWARD)
             .inputs(List.of())
             .outputs(List.of(UtxoTestData.getRewardOutputUtxoSender()))
@@ -108,7 +108,7 @@ public final class TransactionTestData {
             .senderAddress(WalletTestData.ADDRESS_BETA)
             .recipientAddress(WalletTestData.ADDRESS_BETA)
             .amount(REWARD)
-            .fee(new CoinModel(BigDecimal.ZERO))
+            .fee(FEE)
             .type(TransactionType.REWARD)
             .inputs(List.of())
             .outputs(List.of(UtxoTestData.getRewardOutputUtxoSender()))
@@ -118,10 +118,10 @@ public final class TransactionTestData {
 
     private static final TransactionResponse RESPONSE = TransactionResponse.builder()
             .hashId(TRANSACTION_HASH_ID)
-            .senderAddress(WalletTestData.ADDRESS_ALPHA)
-            .recipientAddress(WalletTestData.ADDRESS_BETA)
-            .amount(BigDecimal.ONE)
-            .fee(BigDecimal.ZERO)
+            .senderAddress(WalletTestData.ADDRESS_ALPHA.value())
+            .recipientAddress(WalletTestData.ADDRESS_BETA.value())
+            .amount(AMOUNT.value())
+            .fee(FEE.value())
             .type(TransactionType.TRANSFER)
             .inputs(List.of(UtxoTestData.getInputResponseAlpha(), UtxoTestData.getInputResponseBeta()))
             .outputs(List.of(UtxoTestData.getOutputResponseRecipient(), UtxoTestData.getOutputResponseSender()))
@@ -132,8 +132,8 @@ public final class TransactionTestData {
     private static final TransactionRecord RECORD_PRE_INSERT = new TransactionRecord(
             null,
             TRANSACTION_HASH_ID,
-            WalletTestData.ADDRESS_ALPHA,
-            WalletTestData.ADDRESS_BETA,
+            WalletTestData.ADDRESS_ALPHA.value(),
+            WalletTestData.ADDRESS_BETA.value(),
             AMOUNT.value(),
             FEE.value(),
             TransactionType.TRANSFER.name(),
@@ -144,10 +144,10 @@ public final class TransactionTestData {
     private static final TransactionRecord RECORD_POST_INSERT = new TransactionRecord(
             1L,
             TRANSACTION_HASH_ID,
-            WalletTestData.ADDRESS_ALPHA,
-            WalletTestData.ADDRESS_BETA,
-            BigDecimal.ONE,
-            BigDecimal.ZERO,
+            WalletTestData.ADDRESS_ALPHA.value(),
+            WalletTestData.ADDRESS_BETA.value(),
+            AMOUNT.value(),
+            FEE.value(),
             TransactionType.TRANSFER.name(),
             NOW,
             SIGNATURE

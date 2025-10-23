@@ -1,6 +1,6 @@
 package org.acme.blockchain.transaction.api.contract;
 
-import org.acme.blockchain.transaction.model.CoinModel;
+import org.acme.blockchain.common.model.CoinModel;
 import org.acme.blockchain.transaction.model.enumeration.TransactionType;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
@@ -44,6 +44,9 @@ public class TransactionResponse {
     @Schema(description = "Wallet address of the recipient.")
     @JsonProperty("recipient_address")
     private final String recipientAddress;
+
+    @JsonProperty("sender_public_key")
+    private final byte[] senderPublicKeyEncoded;
 
     /**
      * The principal monetary amount transferred. Excluded from default {@code equals}/{@code hashCode}
@@ -143,7 +146,7 @@ public class TransactionResponse {
      * Custom comparison method for the {@code createdAt} field used by {@code equals} and {@code hashCode}.
      * Truncates the timestamp to millisecond precision for reliable object comparison.
      *
-     * @return The truncated Instant value, or null.
+     * @return The truncated Instant address, or null.
      */
     @EqualsAndHashCode.Include
     private Instant getCreatedAtForEquals() {

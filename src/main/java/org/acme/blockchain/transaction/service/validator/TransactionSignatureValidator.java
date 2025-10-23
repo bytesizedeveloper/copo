@@ -31,7 +31,7 @@ public class TransactionSignatureValidator implements RewardValidator, TransferV
             validationResult.addFailure(transaction + "Signature is null.");
         }
 
-        if (hashId != null && signature != null && walletService.verifySignature(transaction.getSenderAddress(), hashId, signature)) {
+        if (hashId != null && signature != null && walletService.verifySignature(transaction.getSenderPublicKeyEncoded(), hashId, signature)) {
             validationResult.addFailure(transaction + "Signature is invalid.");
         }
     }

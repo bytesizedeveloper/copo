@@ -38,33 +38,59 @@ public class WalletRepositoryTest {
     @Test
     void testInsert() {
         // Given
-        WalletModel wallet = WalletTestData.getWallet();
+        WalletModel toInsert = WalletTestData.getWalletAlpha();
 
         // When
-        walletRepository.insert(wallet);
+        walletRepository.insert(toInsert);
 
         // Then
-        Assertions.assertTrue(walletRepository.exists(wallet.getAddress()));
+        Assertions.assertTrue(walletRepository.exists(toInsert.address().value()));
+    }
+
+    @Test
+    void testRetrieveWalletByAddress_addressFound_returnsPublicKey() {
+        // Given
+        WalletModel toInsert = WalletTestData.getWalletAlpha();
+
+        walletRepository.insert(toInsert);
+
+        // When
+        WalletModel wallet = walletRepository.retrieveWalletByAddress(toInsert.address().value());
+
+        // Then
+        Assertions.assertNull(wallet.keyPair());
+        Assertions.assertEquals(toInsert.address(), wallet.address());
+        Assertions.assertArrayEquals(toInsert.publicKeyEncoded(), wallet.publicKeyEncoded());
+        Assertions.assertNotNull(wallet.createdAt());
+    }
+
+    @Test
+    void testRetrieveWalletByAddress_addressNotFound_throwsNoDataFoundException() {
+        // Given
+        String address = WalletTestData.ADDRESS_ALPHA.value();
+
+        // When & Then
+        Assertions.assertThrows(NoDataFoundException.class, () -> walletRepository.retrieveWalletByAddress(address));
     }
 
     @Test
     void testRetrievePublicKeyByAddress_addressFound_returnsPublicKey() {
         // Given
-        WalletModel wallet = WalletTestData.getWallet();
+        WalletModel wallet = WalletTestData.getWalletAlpha();
 
         walletRepository.insert(wallet);
 
         // When
-        byte[] publicKey = walletRepository.retrievePublicKeyByAddress(wallet.getAddress());
+        byte[] publicKey = walletRepository.retrievePublicKeyByAddress(wallet.address().value());
 
         // Then
-        Assertions.assertArrayEquals(wallet.getPublicKeyEncoded(), publicKey);
+        Assertions.assertArrayEquals(wallet.publicKeyEncoded(), publicKey);
     }
 
     @Test
     void testRetrievePublicKeyByAddress_addressNotFound_throwsNoDataFoundException() {
         // Given
-        String address = WalletTestData.ADDRESS_ALPHA;
+        String address = WalletTestData.ADDRESS_ALPHA.value();
 
         // When & Then
         Assertions.assertThrows(NoDataFoundException.class, () -> walletRepository.retrievePublicKeyByAddress(address));
@@ -73,12 +99,12 @@ public class WalletRepositoryTest {
     @Test
     void testExists_addressFound_returnsTrue() {
         // Given
-        WalletModel wallet = WalletTestData.getWallet();
+        WalletModel wallet = WalletTestData.getWalletAlpha();
 
         walletRepository.insert(wallet);
 
         // When
-        boolean exists = walletRepository.exists(wallet.getAddress());
+        boolean exists = walletRepository.exists(wallet.address().value());
 
         // Then
         Assertions.assertTrue(exists);
@@ -87,7 +113,7 @@ public class WalletRepositoryTest {
     @Test
     void testExists_addressNotFound_returnsFalse() {
         // Given
-        String address = WalletTestData.ADDRESS_ALPHA;
+        String address = WalletTestData.ADDRESS_ALPHA.value();
 
         // When
         boolean exists = walletRepository.exists(address);

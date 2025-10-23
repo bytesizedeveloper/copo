@@ -1,7 +1,6 @@
 package org.acme.blockchain.transaction.api.contract;
 
-import org.acme.blockchain.common.utility.WalletUtility;
-import org.acme.blockchain.transaction.model.CoinModel;
+import org.acme.blockchain.common.model.CoinModel;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -97,28 +96,6 @@ public class TransactionRequest {
     }
 
     /**
-     * Validation method to ensure the sender's address adheres to the cryptographic format (e.g., "COPO_...").
-     *
-     * @return {@code true} if the format is valid.
-     */
-    @JsonIgnore
-    @AssertTrue(message = "Sender address must be valid format.")
-    private boolean isSendersAddressValidFormat() {
-        return addressIsValidFormat(this.senderAddress);
-    }
-
-    /**
-     * Validation method to ensure the recipient's address adheres to the cryptographic format (e.g., "COPO_...").
-     *
-     * @return {@code true} if the format is valid.
-     */
-    @JsonIgnore
-    @AssertTrue(message = "Recipient address must be valid format.")
-    private boolean isRecipientsAddressValidFormat() {
-        return addressIsValidFormat(this.recipientAddress);
-    }
-
-    /**
      * Validation method to prevent a transaction from sending funds back to the exact same address
      * (self-sends are usually redundant or indicative of an error in the front-end logic).
      *
@@ -128,16 +105,6 @@ public class TransactionRequest {
     @AssertTrue(message = "Recipient address must not equal sender address.")
     private boolean isAddressesEqual() {
         return !Objects.equals(this.senderAddress, this.recipientAddress);
-    }
-
-    /**
-     * Helper method to delegate actual address format validation to the utility class.
-     *
-     * @param address The address string to check.
-     * @return {@code true} if the address is valid.
-     */
-    private boolean addressIsValidFormat(String address) {
-        return WalletUtility.isValid(address);
     }
 
     /**

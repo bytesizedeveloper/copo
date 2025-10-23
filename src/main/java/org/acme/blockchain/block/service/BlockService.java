@@ -4,7 +4,7 @@ import org.acme.blockchain.block.model.BlockModel;
 import org.acme.blockchain.block.repository.BlockRepository;
 import org.acme.blockchain.common.utility.HashUtility;
 import org.acme.blockchain.common.utility.TimestampUtility;
-import org.acme.blockchain.transaction.model.CoinModel;
+import org.acme.blockchain.common.model.CoinModel;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.jooq.exception.NoDataFoundException;
@@ -63,7 +63,7 @@ public class BlockService {
      * <li>{@code previousHashId}: "0"</li>
      * <li>{@code transactions}: Empty list</li>
      * <li>{@code difficulty}: 0</li>
-     * <li>{@code reward}: Zero value</li>
+     * <li>{@code reward}: Zero address</li>
      * <li>The block is solved instantly (Nonce 0, no PoW required).</li>
      * </ul>
      *

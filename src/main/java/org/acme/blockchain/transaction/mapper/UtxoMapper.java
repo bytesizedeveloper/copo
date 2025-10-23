@@ -1,6 +1,8 @@
 package org.acme.blockchain.transaction.mapper;
 
 import jooq.tables.records.UtxoRecord;
+import org.acme.blockchain.common.mapper.AddressMapper;
+import org.acme.blockchain.common.mapper.CoinMapper;
 import org.acme.blockchain.transaction.api.contract.UtxoResponse;
 import org.acme.blockchain.transaction.model.UtxoModel;
 import org.mapstruct.Mapper;
@@ -11,7 +13,7 @@ import org.mapstruct.factory.Mappers;
  * MapStruct interface for defining mappings between the UTXO domain model ({@link UtxoModel}),
  * its database representation ({@link UtxoRecord}), and its API response DTO ({@link UtxoResponse}).
  */
-@Mapper(uses = CoinMapper.class)
+@Mapper(uses = {AddressMapper.class, CoinMapper.class})
 public interface UtxoMapper {
 
     /**

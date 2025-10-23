@@ -2,13 +2,15 @@ package org.acme.blockchain.transaction.service;
 
 import org.acme.blockchain.common.exception.CryptographicException;
 import org.acme.blockchain.common.exception.InsufficientBalanceException;
+import org.acme.blockchain.common.model.AddressModel;
 import org.acme.blockchain.common.service.FeeService;
 import org.acme.blockchain.test_common.test_data.TransactionTestData;
 import org.acme.blockchain.test_common.test_data.UtxoTestData;
 import org.acme.blockchain.test_common.test_data.WalletTestData;
-import org.acme.blockchain.transaction.model.CoinModel;
+import org.acme.blockchain.common.model.CoinModel;
 import org.acme.blockchain.transaction.model.TransactionModel;
 import org.acme.blockchain.transaction.model.UtxoModel;
+import org.acme.blockchain.transaction.model.enumeration.OutputIndex;
 import org.acme.blockchain.transaction.model.enumeration.TransactionType;
 import org.acme.blockchain.transaction.repository.UtxoRepository;
 import org.acme.blockchain.wallet.service.WalletService;
@@ -45,14 +47,14 @@ public class TransactionServiceTest {
 
     @Test
     void testCreateTransfer_shouldCreateTransfer_withNoChange() throws Exception {
-        // Given - transaction requires 1 and UTXO contains 1
+        // Given - transaction requires 10 and UTXO contains 9, fee is 1
         TransactionModel transaction = TransactionTestData.getTransactionPreInitialise();
 
         UtxoModel utxo = UtxoTestData.getInputUtxoAlpha();
 
         // When
         Mockito.when(feeService.calculateFee()).thenReturn(TransactionTestData.FEE);
-        Mockito.when(utxoRepository.retrieveUnspentUtxosByRecipientAddress(transaction.getSenderAddress()))
+        Mockito.when(utxoRepository.retrieveUnspentUtxosByRecipientAddress(transaction.getSenderAddress().value()))
                 .thenReturn(List.of(utxo));
         Mockito.when(walletService.sign(Mockito.eq(transaction.getSenderAddress()), Mockito.any(String.class)))
                 .thenReturn(TransactionTestData.SIGNATURE);
@@ -81,7 +83,7 @@ public class TransactionServiceTest {
 
         Assertions.assertEquals(1, result.getOutputs().size());
         Assertions.assertEquals(result.getHashId(), result.getOutputs().get(0).getTransactionHashId());
-        Assertions.assertEquals(UtxoModel.OUTPUT_INDEX_RECIPIENT, result.getOutputs().get(0).getOutputIndex());
+        Assertions.assertEquals(OutputIndex.RECIPIENT.getIndex(), result.getOutputs().get(0).getOutputIndex());
         Assertions.assertEquals(transaction.getRecipientAddress(), result.getOutputs().get(0).getRecipientAddress());
         Assertions.assertEquals(transaction.getAmount(), result.getOutputs().get(0).getAmount());
         Assertions.assertNotNull(result.getOutputs().get(0).getCreatedAt());
@@ -92,17 +94,17 @@ public class TransactionServiceTest {
 
     @Test
     void testCreateTransfer_shouldCreateTransfer_withChange() throws Exception {
-        // Given - transaction requires .5 and UTXO contains 1
+        // Given - transaction requires 5 and UTXO contains 10, fee is 1
         TransactionModel transaction = TransactionTestData.getTransactionPreInitialise();
-        transaction.setAmount(new CoinModel(BigDecimal.valueOf(0.5)));
+        transaction.setAmount(new CoinModel(BigDecimal.valueOf(5)));
 
         UtxoModel utxo = UtxoTestData.getInputUtxoAlpha();
 
-        CoinModel change = utxo.getAmount().subtract(transaction.getAmount());
+        CoinModel change = utxo.getAmount().subtract(transaction.getTotalRequired());
 
         // When
         Mockito.when(feeService.calculateFee()).thenReturn(TransactionTestData.FEE);
-        Mockito.when(utxoRepository.retrieveUnspentUtxosByRecipientAddress(transaction.getSenderAddress()))
+        Mockito.when(utxoRepository.retrieveUnspentUtxosByRecipientAddress(transaction.getSenderAddress().value()))
                 .thenReturn(List.of(utxo));
         Mockito.when(walletService.sign(Mockito.eq(transaction.getSenderAddress()), Mockito.any(String.class)))
                 .thenReturn(TransactionTestData.SIGNATURE);
@@ -132,14 +134,14 @@ public class TransactionServiceTest {
         Assertions.assertEquals(2, result.getOutputs().size());
 
         Assertions.assertEquals(result.getHashId(), result.getOutputs().get(0).getTransactionHashId());
-        Assertions.assertEquals(UtxoModel.OUTPUT_INDEX_RECIPIENT, result.getOutputs().get(0).getOutputIndex());
+        Assertions.assertEquals(OutputIndex.RECIPIENT.getIndex(), result.getOutputs().get(0).getOutputIndex());
         Assertions.assertEquals(transaction.getRecipientAddress(), result.getOutputs().get(0).getRecipientAddress());
         Assertions.assertEquals(transaction.getAmount(), result.getOutputs().get(0).getAmount());
         Assertions.assertNotNull(result.getOutputs().get(0).getCreatedAt());
         Assertions.assertFalse(result.getOutputs().get(0).isSpent());
 
         Assertions.assertEquals(result.getHashId(), result.getOutputs().get(1).getTransactionHashId());
-        Assertions.assertEquals(UtxoModel.OUTPUT_INDEX_SENDER, result.getOutputs().get(1).getOutputIndex());
+        Assertions.assertEquals(OutputIndex.SENDER.getIndex(), result.getOutputs().get(1).getOutputIndex());
         Assertions.assertEquals(transaction.getSenderAddress(), result.getOutputs().get(1).getRecipientAddress());
         Assertions.assertEquals(change, result.getOutputs().get(1).getAmount());
         Assertions.assertNotNull(result.getOutputs().get(1).getCreatedAt());
@@ -161,7 +163,7 @@ public class TransactionServiceTest {
 
         // When
         Mockito.when(feeService.calculateFee()).thenReturn(TransactionTestData.FEE);
-        Mockito.when(utxoRepository.retrieveUnspentUtxosByRecipientAddress(transaction.getSenderAddress()))
+        Mockito.when(utxoRepository.retrieveUnspentUtxosByRecipientAddress(transaction.getSenderAddress().value()))
                 .thenReturn(List.of(utxoAlpha, utxoBeta));
         Mockito.when(walletService.sign(Mockito.eq(transaction.getSenderAddress()), Mockito.any(String.class)))
                 .thenReturn(TransactionTestData.SIGNATURE);
@@ -199,7 +201,7 @@ public class TransactionServiceTest {
 
         Assertions.assertEquals(1, result.getOutputs().size());
         Assertions.assertEquals(result.getHashId(), result.getOutputs().get(0).getTransactionHashId());
-        Assertions.assertEquals(UtxoModel.OUTPUT_INDEX_RECIPIENT, result.getOutputs().get(0).getOutputIndex());
+        Assertions.assertEquals(OutputIndex.RECIPIENT.getIndex(), result.getOutputs().get(0).getOutputIndex());
         Assertions.assertEquals(transaction.getRecipientAddress(), result.getOutputs().get(0).getRecipientAddress());
         Assertions.assertEquals(transaction.getAmount(), result.getOutputs().get(0).getAmount());
         Assertions.assertNotNull(result.getOutputs().get(0).getCreatedAt());
@@ -211,7 +213,7 @@ public class TransactionServiceTest {
     @Test
     void testCreateReward_shouldCreateAndSignRewardTransaction() throws Exception {
         // Given
-        String address = WalletTestData.ADDRESS_ALPHA;
+        AddressModel address = WalletTestData.ADDRESS_ALPHA;
         CoinModel amount = new CoinModel(BigDecimal.ONE);
 
         // When
@@ -235,7 +237,7 @@ public class TransactionServiceTest {
 
         Assertions.assertEquals(1, result.getOutputs().size());
         Assertions.assertEquals(result.getHashId(), result.getOutputs().get(0).getTransactionHashId());
-        Assertions.assertEquals(UtxoModel.OUTPUT_INDEX_RECIPIENT, result.getOutputs().get(0).getOutputIndex());
+        Assertions.assertEquals(OutputIndex.RECIPIENT.getIndex(), result.getOutputs().get(0).getOutputIndex());
         Assertions.assertEquals(address, result.getOutputs().get(0).getRecipientAddress());
         Assertions.assertEquals(amount, result.getOutputs().get(0).getAmount());
         Assertions.assertNotNull(result.getOutputs().get(0).getCreatedAt());
@@ -254,7 +256,7 @@ public class TransactionServiceTest {
 
         // When
         Mockito.when(feeService.calculateFee()).thenReturn(TransactionTestData.FEE);
-        Mockito.when(utxoRepository.retrieveUnspentUtxosByRecipientAddress(transaction.getSenderAddress()))
+        Mockito.when(utxoRepository.retrieveUnspentUtxosByRecipientAddress(transaction.getSenderAddress().value()))
                 .thenReturn(List.of(utxo));
 
         // Then
@@ -273,7 +275,7 @@ public class TransactionServiceTest {
 
         // When
         Mockito.when(feeService.calculateFee()).thenReturn(TransactionTestData.FEE);
-        Mockito.when(utxoRepository.retrieveUnspentUtxosByRecipientAddress(transaction.getSenderAddress()))
+        Mockito.when(utxoRepository.retrieveUnspentUtxosByRecipientAddress(transaction.getSenderAddress().value()))
                 .thenReturn(List.of(utxo));
         Mockito.when(walletService.sign(Mockito.eq(transaction.getSenderAddress()), Mockito.any(String.class)))
                 .thenThrow(KeyStoreException.class);
@@ -293,7 +295,7 @@ public class TransactionServiceTest {
 
         // When
         Mockito.when(feeService.calculateFee()).thenReturn(TransactionTestData.FEE);
-        Mockito.when(utxoRepository.retrieveUnspentUtxosByRecipientAddress(transaction.getSenderAddress()))
+        Mockito.when(utxoRepository.retrieveUnspentUtxosByRecipientAddress(transaction.getSenderAddress().value()))
                 .thenReturn(List.of(utxo));
         Mockito.when(walletService.sign(Mockito.eq(transaction.getSenderAddress()), Mockito.any(String.class)))
                 .thenThrow(CryptographicException.class);
@@ -307,7 +309,7 @@ public class TransactionServiceTest {
     @Test
     void testCreateReward_shouldThrowIllegalStateException() throws Exception {
         // Given
-        String address = WalletTestData.ADDRESS_ALPHA;
+        AddressModel address = WalletTestData.ADDRESS_ALPHA;
         CoinModel amount = new CoinModel(BigDecimal.ONE);
 
         // When
@@ -323,7 +325,7 @@ public class TransactionServiceTest {
     @Test
     void testCreateReward_shouldThrowCryptographicException() throws Exception {
         // Given
-        String address = WalletTestData.ADDRESS_ALPHA;
+        AddressModel address = WalletTestData.ADDRESS_ALPHA;
         CoinModel amount = new CoinModel(BigDecimal.ONE);
 
         // When

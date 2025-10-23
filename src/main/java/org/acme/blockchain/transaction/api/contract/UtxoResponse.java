@@ -36,14 +36,14 @@ public class UtxoResponse {
     private String outputIndex;
 
     /**
-     * The wallet address that is authorized to spend the value of this output.
+     * The wallet address that is authorized to spend the address of this output.
      */
     @Schema(description = "Wallet address of the recipient.")
     @JsonProperty("recipient_address")
     private String recipientAddress;
 
     /**
-     * The monetary value contained within this output.
+     * The monetary address contained within this output.
      * Excluded from default {@code equals}/{@code hashCode} to use the custom precision comparison.
      */
     @EqualsAndHashCode.Exclude
@@ -82,7 +82,7 @@ public class UtxoResponse {
      * Custom comparison method for the {@code createdAt} field used by {@code equals} and {@code hashCode}.
      * Truncates the timestamp to millisecond precision to ensure reliable object comparison.
      *
-     * @return The truncated Instant value, or null.
+     * @return The truncated Instant address, or null.
      */
     @EqualsAndHashCode.Include
     private Instant getCreatedAtForEquals() {
