@@ -18,7 +18,7 @@ CREATE TABLE block (
     height BIGINT NOT NULL,
     nonce BIGINT NOT NULL,
     difficulty SMALLINT NOT NULL,
-    reward DECIMAL(17, 8) NOT NULL,
+    reward_amount DECIMAL(17, 8) NOT NULL,
     created_at TIMESTAMPTZ NOT NULL,
     mined_at TIMESTAMPTZ NOT NULL
 );
@@ -35,9 +35,10 @@ CREATE TABLE transaction (
     sender_public_key_encoded BYTEA NOT NULL,
     amount DECIMAL(17, 8) NOT NULL,
     fee DECIMAL(17, 8) NOT NULL,
+    input_ids VARCHAR(67)[],
     type VARCHAR(12) NOT NULL,
     created_at TIMESTAMPTZ NOT NULL,
-    signature VARCHAR NOT NULL
+    signature VARCHAR(64) NOT NULL
 );
 
 CREATE INDEX transaction_hash_id_idx ON transaction(hash_id);

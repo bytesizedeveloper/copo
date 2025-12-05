@@ -1,17 +1,17 @@
 package org.acme.blockchain.block.service;
 
-import org.acme.blockchain.block.model.BlockModel;
-import org.acme.blockchain.block.repository.BlockRepository;
-import org.acme.blockchain.common.utility.HashUtility;
-import org.acme.blockchain.common.utility.TimestampUtility;
-import org.acme.blockchain.common.model.CoinModel;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import org.acme.blockchain.block.model.BlockHash;
+import org.acme.blockchain.block.model.BlockModel;
+import org.acme.blockchain.block.repository.BlockRepository;
+import org.acme.blockchain.common.model.Coin;
+import org.acme.blockchain.common.utility.HashUtility;
+import org.acme.blockchain.common.utility.TimestampUtility;
 import org.jooq.exception.NoDataFoundException;
 
-import java.math.BigDecimal;
 import java.time.OffsetDateTime;
-import java.util.List;
+import java.util.LinkedList;
 
 /**
  * Service layer responsible for managing the state of the blockchain,
@@ -67,23 +67,24 @@ public class BlockService {
      * <li>The block is solved instantly (Nonce 0, no PoW required).</li>
      * </ul>
      *
-     * @return The fully initialized and persisted Genesis Block Model.
+     * @return The fully initialised and persisted Genesis Block Model.
      */
     private BlockModel createGenesisBlock() {
         OffsetDateTime now = TimestampUtility.getOffsetDateTimeNow();
         long nonce = 0;
 
         BlockModel genesisBlock = BlockModel.builder()
-                .previousHashId("0")
-                .transactions(List.of())
+                .previousHashId(BlockHash.GENESIS_PREVIOUS_HASH)
+                .transactions(new LinkedList<>())
                 .nonce(nonce)
                 .difficulty(0)
-                .reward(new CoinModel(BigDecimal.ZERO))
+                .rewardAmount(Coin.ZERO)
                 .createdAt(now)
                 .minedAt(now)
                 .build();
 
-        genesisBlock.setHashId(HashUtility.calculateSHA256d(genesisBlock.getData() + nonce));
+        String hashId = HashUtility.calculateSHA256d(genesisBlock.getData() + nonce);
+        genesisBlock.setHashId(new BlockHash(hashId));
 
         blockRepository.insert(genesisBlock);
 

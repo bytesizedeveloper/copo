@@ -3,15 +3,19 @@ package org.acme.blockchain.wallet.service;
 import jakarta.ws.rs.NotFoundException;
 import org.acme.blockchain.common.exception.CryptographicException;
 import org.acme.blockchain.common.exception.KeystoreException;
-import org.acme.blockchain.common.model.AddressModel;
+import org.acme.blockchain.common.model.Address;
 import org.acme.blockchain.common.utility.HashUtility;
-import org.acme.blockchain.wallet.utility.KeyPairUtility;
-import org.acme.blockchain.test_common.test_data.WalletTestData;
+import org.acme.blockchain.test_common.factory.AddressTestFactory;
+import org.acme.blockchain.test_common.factory.TransactionSignatureTestFactory;
+import org.acme.blockchain.test_common.factory.WalletTestFactory;
+import org.acme.blockchain.transaction.model.TransactionSignature;
 import org.acme.blockchain.wallet.model.WalletModel;
 import org.acme.blockchain.wallet.repository.WalletRepository;
+import org.acme.blockchain.wallet.utility.KeyPairUtility;
 import org.jooq.exception.DataAccessException;
 import org.jooq.exception.NoDataFoundException;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -20,8 +24,8 @@ import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
-import java.security.KeyPairGenerator;
 import java.security.MessageDigest;
 import java.util.HexFormat;
 
@@ -37,15 +41,21 @@ public class WalletServiceTest {
     @InjectMocks
     WalletService walletService;
 
+    private static KeyPair VALID_KEY_PAIR;
+
+    @BeforeAll
+    static void setup() {
+        VALID_KEY_PAIR = KeyPairUtility.generateKeyPair();
+        Assertions.assertNotNull(VALID_KEY_PAIR, "Key pair must be generated.");
+    }
+
     @Test
     void testCreate_returnsWalletModelAndPersistsKey() throws Exception {
         // Given
-        KeyPair keyPair = KeyPairGenerator.getInstance("ML-DSA-87", "BC").generateKeyPair();
-
         try (MockedStatic<KeyPairUtility> keyPairUtilityMock = Mockito.mockStatic(KeyPairUtility.class);
              MockedStatic<HashUtility> hashUtilityMock = Mockito.mockStatic(HashUtility.class)) {
 
-            byte[] publicKeyEncoded = keyPair.getPublic().getEncoded();
+            byte[] publicKeyEncoded = VALID_KEY_PAIR.getPublic().getEncoded();
             byte[] sha256 = MessageDigest.getInstance("SHA-256").digest(publicKeyEncoded);
             byte[] blake2b = MessageDigest.getInstance("BLAKE2b-256").digest(sha256);
             String hex = HexFormat.of().formatHex(blake2b).toLowerCase();
@@ -53,7 +63,7 @@ public class WalletServiceTest {
             String address = "COPO_" + hex;
 
             // When
-            keyPairUtilityMock.when(KeyPairUtility::generateKeyPair).thenReturn(keyPair);
+            keyPairUtilityMock.when(KeyPairUtility::generateKeyPair).thenReturn(VALID_KEY_PAIR);
 
             hashUtilityMock.when(() -> HashUtility.calculateSHA256(publicKeyEncoded)).thenReturn(sha256);
             hashUtilityMock.when(() -> HashUtility.calculateBLAKE2b256(sha256)).thenReturn(blake2b);
@@ -65,11 +75,11 @@ public class WalletServiceTest {
 
             // Then
             Mockito.verify(walletRepository, Mockito.times(1)).exists(address);
-            Mockito.verify(keyStoreService, Mockito.times(1)).writePrivateKeyToKeystore(keyPair, address);
+            Mockito.verify(keyStoreService, Mockito.times(1)).writePrivateKeyToKeystore(VALID_KEY_PAIR, address);
             Mockito.verify(walletRepository, Mockito.times(1)).insert(Mockito.any(WalletModel.class));
 
             Assertions.assertEquals(address, result.address().value(), "Wallet address should match the calculated hash.");
-            Assertions.assertEquals(keyPair, result.keyPair(), "WalletModel should contain the generated KeyPair.");
+            Assertions.assertEquals(VALID_KEY_PAIR, result.keyPair(), "WalletModel should contain the generated KeyPair.");
             Assertions.assertNotNull(result.publicKeyEncoded(), "WalletModel should contain a valid encoded public key.");
             Assertions.assertNotNull(result.createdAt(), "WalletModel should contain a valid timestamp.");
         }
@@ -91,15 +101,13 @@ public class WalletServiceTest {
     }
 
     @Test
-    void testCreate_addressGenerationFailure_sha256Hash_throwsIllegalArgumentException() throws Exception {
+    void testCreate_addressGenerationFailure_sha256Hash_throwsIllegalArgumentException() {
         // Given
-        KeyPair keyPair = KeyPairGenerator.getInstance("ML-DSA-87", "BC").generateKeyPair();
-
         try (MockedStatic<KeyPairUtility> keyPairUtilityMock = Mockito.mockStatic(KeyPairUtility.class);
              MockedStatic<HashUtility> hashUtilityMock = Mockito.mockStatic(HashUtility.class)) {
 
             // When
-            keyPairUtilityMock.when(KeyPairUtility::generateKeyPair).thenReturn(keyPair);
+            keyPairUtilityMock.when(KeyPairUtility::generateKeyPair).thenReturn(VALID_KEY_PAIR);
 
             // Then
             Assertions.assertThrows(IllegalArgumentException.class, () -> walletService.create(), "Exception should be thrown in the event of a address generation failure.");
@@ -111,17 +119,15 @@ public class WalletServiceTest {
     }
 
     @Test
-    void testCreate_addressGenerationFailure_sha256Hash_throwsCryptographicException() throws Exception {
+    void testCreate_addressGenerationFailure_sha256Hash_throwsCryptographicException() {
         // Given
-        KeyPair keyPair = KeyPairGenerator.getInstance("ML-DSA-87", "BC").generateKeyPair();
-
         try (MockedStatic<KeyPairUtility> keyPairUtilityMock = Mockito.mockStatic(KeyPairUtility.class);
              MockedStatic<HashUtility> hashUtilityMock = Mockito.mockStatic(HashUtility.class)) {
 
-            byte[] publicKeyEncoded = keyPair.getPublic().getEncoded();
+            byte[] publicKeyEncoded = VALID_KEY_PAIR.getPublic().getEncoded();
 
             // When
-            keyPairUtilityMock.when(KeyPairUtility::generateKeyPair).thenReturn(keyPair);
+            keyPairUtilityMock.when(KeyPairUtility::generateKeyPair).thenReturn(VALID_KEY_PAIR);
 
             hashUtilityMock.when(() -> HashUtility.calculateSHA256(publicKeyEncoded)).thenThrow(CryptographicException.class);
 
@@ -135,17 +141,15 @@ public class WalletServiceTest {
     }
 
     @Test
-    void testCreate_addressGenerationFailure_blake2bHash_throwsIllegalArgumentException() throws Exception {
+    void testCreate_addressGenerationFailure_blake2bHash_throwsIllegalArgumentException() {
         // Given
-        KeyPair keyPair = KeyPairGenerator.getInstance("ML-DSA-87", "BC").generateKeyPair();
-
         try (MockedStatic<KeyPairUtility> keyPairUtilityMock = Mockito.mockStatic(KeyPairUtility.class);
              MockedStatic<HashUtility> hashUtilityMock = Mockito.mockStatic(HashUtility.class)) {
 
-            byte[] publicKeyEncoded = keyPair.getPublic().getEncoded();
+            byte[] publicKeyEncoded = VALID_KEY_PAIR.getPublic().getEncoded();
 
             // When
-            keyPairUtilityMock.when(KeyPairUtility::generateKeyPair).thenReturn(keyPair);
+            keyPairUtilityMock.when(KeyPairUtility::generateKeyPair).thenReturn(VALID_KEY_PAIR);
 
             hashUtilityMock.when(() -> HashUtility.calculateSHA256(publicKeyEncoded)).thenReturn(null);
 
@@ -161,16 +165,14 @@ public class WalletServiceTest {
     @Test
     void testCreate_addressGenerationFailure_blake2bHash_throwsCryptographicException() throws Exception {
         // Given
-        KeyPair keyPair = KeyPairGenerator.getInstance("ML-DSA-87", "BC").generateKeyPair();
-
         try (MockedStatic<KeyPairUtility> keyPairUtilityMock = Mockito.mockStatic(KeyPairUtility.class);
              MockedStatic<HashUtility> hashUtilityMock = Mockito.mockStatic(HashUtility.class)) {
 
-            byte[] publicKeyEncoded = keyPair.getPublic().getEncoded();
+            byte[] publicKeyEncoded = VALID_KEY_PAIR.getPublic().getEncoded();
             byte[] sha256 = MessageDigest.getInstance("SHA-256").digest(publicKeyEncoded);
 
             // When
-            keyPairUtilityMock.when(KeyPairUtility::generateKeyPair).thenReturn(keyPair);
+            keyPairUtilityMock.when(KeyPairUtility::generateKeyPair).thenReturn(VALID_KEY_PAIR);
 
             hashUtilityMock.when(() -> HashUtility.calculateSHA256(publicKeyEncoded)).thenReturn(sha256);
             hashUtilityMock.when(() -> HashUtility.calculateBLAKE2b256(sha256)).thenThrow(CryptographicException.class);
@@ -187,16 +189,14 @@ public class WalletServiceTest {
     @Test
     void testCreate_addressGenerationFailure_toHex_throwsIllegalArgumentException() throws Exception {
         // Given
-        KeyPair keyPair = KeyPairGenerator.getInstance("ML-DSA-87", "BC").generateKeyPair();
-
         try (MockedStatic<KeyPairUtility> keyPairUtilityMock = Mockito.mockStatic(KeyPairUtility.class);
              MockedStatic<HashUtility> hashUtilityMock = Mockito.mockStatic(HashUtility.class)) {
 
-            byte[] publicKeyEncoded = keyPair.getPublic().getEncoded();
+            byte[] publicKeyEncoded = VALID_KEY_PAIR.getPublic().getEncoded();
             byte[] sha256 = MessageDigest.getInstance("SHA-256").digest(publicKeyEncoded);
 
             // When
-            keyPairUtilityMock.when(KeyPairUtility::generateKeyPair).thenReturn(keyPair);
+            keyPairUtilityMock.when(KeyPairUtility::generateKeyPair).thenReturn(VALID_KEY_PAIR);
 
             hashUtilityMock.when(() -> HashUtility.calculateSHA256(publicKeyEncoded)).thenReturn(null);
             hashUtilityMock.when(() -> HashUtility.calculateBLAKE2b256(sha256)).thenReturn(null);
@@ -213,12 +213,10 @@ public class WalletServiceTest {
     @Test
     void testCreate_collisionDetected_throwsIllegalStateException() throws Exception {
         // Given
-        KeyPair keyPair = KeyPairGenerator.getInstance("ML-DSA-87", "BC").generateKeyPair();
-
         try (MockedStatic<KeyPairUtility> keyPairUtilityMock = Mockito.mockStatic(KeyPairUtility.class);
              MockedStatic<HashUtility> hashUtilityMock = Mockito.mockStatic(HashUtility.class)) {
 
-            byte[] publicKeyEncoded = keyPair.getPublic().getEncoded();
+            byte[] publicKeyEncoded = VALID_KEY_PAIR.getPublic().getEncoded();
             byte[] sha256 = MessageDigest.getInstance("SHA-256").digest(publicKeyEncoded);
             byte[] blake2b = MessageDigest.getInstance("BLAKE2b-256").digest(sha256);
             String hex = HexFormat.of().formatHex(blake2b).toLowerCase();
@@ -226,7 +224,7 @@ public class WalletServiceTest {
             String address = "COPO_" + hex;
 
             // When
-            keyPairUtilityMock.when(KeyPairUtility::generateKeyPair).thenReturn(keyPair);
+            keyPairUtilityMock.when(KeyPairUtility::generateKeyPair).thenReturn(VALID_KEY_PAIR);
 
             hashUtilityMock.when(() -> HashUtility.calculateSHA256(publicKeyEncoded)).thenReturn(sha256);
             hashUtilityMock.when(() -> HashUtility.calculateBLAKE2b256(sha256)).thenReturn(blake2b);
@@ -247,12 +245,10 @@ public class WalletServiceTest {
     @Test
     void testCreate_keystoreFailure_throwsKeystoreException() throws Exception {
         // Given
-        KeyPair keyPair = KeyPairGenerator.getInstance("ML-DSA-87", "BC").generateKeyPair();
-
         try (MockedStatic<KeyPairUtility> keyPairUtilityMock = Mockito.mockStatic(KeyPairUtility.class);
              MockedStatic<HashUtility> hashUtilityMock = Mockito.mockStatic(HashUtility.class)) {
 
-            byte[] publicKeyEncoded = keyPair.getPublic().getEncoded();
+            byte[] publicKeyEncoded = VALID_KEY_PAIR.getPublic().getEncoded();
             byte[] sha256 = MessageDigest.getInstance("SHA-256").digest(publicKeyEncoded);
             byte[] blake2b = MessageDigest.getInstance("BLAKE2b-256").digest(sha256);
             String hex = HexFormat.of().formatHex(blake2b).toLowerCase();
@@ -260,20 +256,20 @@ public class WalletServiceTest {
             String address = "COPO_" + hex;
 
             // When
-            keyPairUtilityMock.when(KeyPairUtility::generateKeyPair).thenReturn(keyPair);
+            keyPairUtilityMock.when(KeyPairUtility::generateKeyPair).thenReturn(VALID_KEY_PAIR);
 
             hashUtilityMock.when(() -> HashUtility.calculateSHA256(publicKeyEncoded)).thenReturn(sha256);
             hashUtilityMock.when(() -> HashUtility.calculateBLAKE2b256(sha256)).thenReturn(blake2b);
             hashUtilityMock.when(() -> HashUtility.bytesToHex(blake2b)).thenReturn(hex);
 
             Mockito.when(walletRepository.exists(address)).thenReturn(false);
-            Mockito.doThrow(KeystoreException.class).when(keyStoreService).writePrivateKeyToKeystore(keyPair, address);
+            Mockito.doThrow(KeystoreException.class).when(keyStoreService).writePrivateKeyToKeystore(VALID_KEY_PAIR, address);
 
             // Then
             Assertions.assertThrows(KeystoreException.class, () -> walletService.create(), "Exception should be thrown in the event of keystore failure.");
 
             Mockito.verify(walletRepository, Mockito.times(1)).exists(address);
-            Mockito.verify(keyStoreService, Mockito.times(1)).writePrivateKeyToKeystore(keyPair, address);
+            Mockito.verify(keyStoreService, Mockito.times(1)).writePrivateKeyToKeystore(VALID_KEY_PAIR, address);
             Mockito.verify(walletRepository, Mockito.never()).insert(Mockito.any(WalletModel.class));
         }
     }
@@ -281,12 +277,10 @@ public class WalletServiceTest {
     @Test
     void testCreate_keystoreFailure_throwsCryptographicException() throws Exception {
         // Given
-        KeyPair keyPair = KeyPairGenerator.getInstance("ML-DSA-87", "BC").generateKeyPair();
-
         try (MockedStatic<KeyPairUtility> keyPairUtilityMock = Mockito.mockStatic(KeyPairUtility.class);
              MockedStatic<HashUtility> hashUtilityMock = Mockito.mockStatic(HashUtility.class)) {
 
-            byte[] publicKeyEncoded = keyPair.getPublic().getEncoded();
+            byte[] publicKeyEncoded = VALID_KEY_PAIR.getPublic().getEncoded();
             byte[] sha256 = MessageDigest.getInstance("SHA-256").digest(publicKeyEncoded);
             byte[] blake2b = MessageDigest.getInstance("BLAKE2b-256").digest(sha256);
             String hex = HexFormat.of().formatHex(blake2b).toLowerCase();
@@ -294,20 +288,20 @@ public class WalletServiceTest {
             String address = "COPO_" + hex;
 
             // When
-            keyPairUtilityMock.when(KeyPairUtility::generateKeyPair).thenReturn(keyPair);
+            keyPairUtilityMock.when(KeyPairUtility::generateKeyPair).thenReturn(VALID_KEY_PAIR);
 
             hashUtilityMock.when(() -> HashUtility.calculateSHA256(publicKeyEncoded)).thenReturn(sha256);
             hashUtilityMock.when(() -> HashUtility.calculateBLAKE2b256(sha256)).thenReturn(blake2b);
             hashUtilityMock.when(() -> HashUtility.bytesToHex(blake2b)).thenReturn(hex);
 
             Mockito.when(walletRepository.exists(address)).thenReturn(false);
-            Mockito.doThrow(CryptographicException.class).when(keyStoreService).writePrivateKeyToKeystore(keyPair, address);
+            Mockito.doThrow(CryptographicException.class).when(keyStoreService).writePrivateKeyToKeystore(VALID_KEY_PAIR, address);
 
             // Then
             Assertions.assertThrows(CryptographicException.class, () -> walletService.create(), "Exception should be thrown in the event of keystore failure.");
 
             Mockito.verify(walletRepository, Mockito.times(1)).exists(address);
-            Mockito.verify(keyStoreService, Mockito.times(1)).writePrivateKeyToKeystore(keyPair, address);
+            Mockito.verify(keyStoreService, Mockito.times(1)).writePrivateKeyToKeystore(VALID_KEY_PAIR, address);
             Mockito.verify(walletRepository, Mockito.never()).insert(Mockito.any(WalletModel.class));
         }
     }
@@ -315,12 +309,10 @@ public class WalletServiceTest {
     @Test
     void testCreate_publicKeyPersistenceFailure_throwsDataAccessException() throws Exception {
         // Given
-        KeyPair keyPair = KeyPairGenerator.getInstance("ML-DSA-87", "BC").generateKeyPair();
-
         try (MockedStatic<KeyPairUtility> keyPairUtilityMock = Mockito.mockStatic(KeyPairUtility.class);
              MockedStatic<HashUtility> hashUtilityMock = Mockito.mockStatic(HashUtility.class)) {
 
-            byte[] publicKeyEncoded = keyPair.getPublic().getEncoded();
+            byte[] publicKeyEncoded = VALID_KEY_PAIR.getPublic().getEncoded();
             byte[] sha256 = MessageDigest.getInstance("SHA-256").digest(publicKeyEncoded);
             byte[] blake2b = MessageDigest.getInstance("BLAKE2b-256").digest(sha256);
             String hex = HexFormat.of().formatHex(blake2b).toLowerCase();
@@ -328,7 +320,7 @@ public class WalletServiceTest {
             String address = "COPO_" + hex;
 
             // When
-            keyPairUtilityMock.when(KeyPairUtility::generateKeyPair).thenReturn(keyPair);
+            keyPairUtilityMock.when(KeyPairUtility::generateKeyPair).thenReturn(VALID_KEY_PAIR);
 
             hashUtilityMock.when(() -> HashUtility.calculateSHA256(publicKeyEncoded)).thenReturn(sha256);
             hashUtilityMock.when(() -> HashUtility.calculateBLAKE2b256(sha256)).thenReturn(blake2b);
@@ -341,7 +333,7 @@ public class WalletServiceTest {
             Assertions.assertThrows(DataAccessException.class, () -> walletService.create(), "Exception should be thrown in the event of public key persistence failure.");
 
             Mockito.verify(walletRepository, Mockito.times(1)).exists(address);
-            Mockito.verify(keyStoreService, Mockito.times(1)).writePrivateKeyToKeystore(keyPair, address);
+            Mockito.verify(keyStoreService, Mockito.times(1)).writePrivateKeyToKeystore(VALID_KEY_PAIR, address);
             Mockito.verify(walletRepository, Mockito.times(1)).insert(Mockito.any(WalletModel.class));
         }
     }
@@ -349,25 +341,23 @@ public class WalletServiceTest {
     @Test
     void testGet_retrievesWallet() {
         // Given
-        AddressModel address = WalletTestData.ADDRESS_ALPHA;
-
-        WalletModel wallet = WalletTestData.getWalletAlpha();
+        WalletModel wallet = WalletTestFactory.getWalletModel();
 
         // When
-        Mockito.when(walletRepository.retrieveWalletByAddress(address.value())).thenReturn(wallet);
+        Mockito.when(walletRepository.retrieveWalletByAddress(wallet.address().value())).thenReturn(wallet);
 
-        WalletModel returned = walletService.get(address);
+        WalletModel returned = walletService.get(wallet.address());
 
         // Then
         Assertions.assertEquals(wallet, returned);
 
-        Mockito.verify(walletRepository, Mockito.times(1)).retrieveWalletByAddress(address.value());
+        Mockito.verify(walletRepository, Mockito.times(1)).retrieveWalletByAddress(wallet.address().value());
     }
 
     @Test
     void testGet_addressNotFound_throwsNotFoundException() {
         // Given
-        AddressModel address = WalletTestData.ADDRESS_ALPHA;
+        Address address = AddressTestFactory.getAddress();
 
         // When
         Mockito.when(walletRepository.retrieveWalletByAddress(address.value())).thenThrow(NoDataFoundException.class);
@@ -382,7 +372,7 @@ public class WalletServiceTest {
     @Test
     void testGet_queryFailure_throwsDataAccessException() {
         // Given
-        AddressModel address = WalletTestData.ADDRESS_ALPHA;
+        Address address = AddressTestFactory.getAddress();
 
         // When
         Mockito.when(walletRepository.retrieveWalletByAddress(address.value())).thenThrow(DataAccessException.class);
@@ -396,18 +386,20 @@ public class WalletServiceTest {
     @Test
     void testSign_returnsSignature() {
         // Given
-        AddressModel address = WalletTestData.ADDRESS_ALPHA;
+        Address address = AddressTestFactory.getAddress();
 
-        KeyPair keyPair = WalletTestData.KEYPAIR_ALPHA;
+        String message = "message";
+
+        byte[] signatureAsBytes = TransactionSignatureTestFactory.getTransactionSignatureBytes();
 
         // When
         try (MockedStatic<KeyPairUtility> keyPairUtilityMock = Mockito.mockStatic(KeyPairUtility.class)) {
 
-            Mockito.when(keyStoreService.readPrivateKeyFromKeystore(address.value())).thenReturn(keyPair.getPrivate());
+            Mockito.when(keyStoreService.readPrivateKeyFromKeystore(address.value())).thenReturn(VALID_KEY_PAIR.getPrivate());
 
-            keyPairUtilityMock.when(() -> KeyPairUtility.sign(Mockito.any(), Mockito.any())).thenReturn(new byte[]{});
+            keyPairUtilityMock.when(() -> KeyPairUtility.sign(Mockito.any(), Mockito.any())).thenReturn(signatureAsBytes);
 
-            String signature = walletService.sign(address, "message");
+            TransactionSignature signature = walletService.sign(address, message);
 
             // Then
             Assertions.assertNotNull(signature);
@@ -419,7 +411,9 @@ public class WalletServiceTest {
     @Test
     void testSign_keystoreFailure_throwsKeystoreException() {
         // Given
-        AddressModel address = WalletTestData.ADDRESS_ALPHA;
+        Address address = AddressTestFactory.getAddress();
+
+        String message = "message";
 
         // When
         try (MockedStatic<KeyPairUtility> keyPairUtilityMock = Mockito.mockStatic(KeyPairUtility.class)) {
@@ -427,7 +421,7 @@ public class WalletServiceTest {
             Mockito.when(keyStoreService.readPrivateKeyFromKeystore(address.value())).thenThrow(KeystoreException.class);
 
             // Then
-            Exception thrown = Assertions.assertThrows(Exception.class, () -> walletService.sign(address, "message"), "Exception should be thrown in the event of keystore failure.");
+            Exception thrown = Assertions.assertThrows(Exception.class, () -> walletService.sign(address, message), "Exception should be thrown in the event of keystore failure.");
 
             Assertions.assertInstanceOf(KeystoreException.class, thrown, "Exception should indicate keystore failure.");
 
@@ -439,7 +433,9 @@ public class WalletServiceTest {
     @Test
     void testSign_keystoreFailure_throwsCryptographicException() {
         // Given
-        AddressModel address = WalletTestData.ADDRESS_ALPHA;
+        Address address = AddressTestFactory.getAddress();
+
+        String message = "message";
 
         // When
         try (MockedStatic<KeyPairUtility> keyPairUtilityMock = Mockito.mockStatic(KeyPairUtility.class)) {
@@ -447,7 +443,7 @@ public class WalletServiceTest {
             Mockito.when(keyStoreService.readPrivateKeyFromKeystore(address.value())).thenThrow(CryptographicException.class);
 
             // Then
-            Assertions.assertThrows(CryptographicException.class, () -> walletService.sign(address, "message"), "Exception should be thrown in the event of keystore failure.");
+            Assertions.assertThrows(CryptographicException.class, () -> walletService.sign(address, message), "Exception should be thrown in the event of keystore failure.");
 
             Mockito.verify(keyStoreService, Mockito.times(1)).readPrivateKeyFromKeystore(address.value());
             Mockito.verify(walletRepository, Mockito.never()).retrievePublicKeyByAddress(address.value());
@@ -457,19 +453,19 @@ public class WalletServiceTest {
     @Test
     void testSign_signFailure_throwsCryptographicException() {
         // Given
-        AddressModel address = WalletTestData.ADDRESS_ALPHA;
+        Address address = AddressTestFactory.getAddress();
 
-        KeyPair keyPair = WalletTestData.KEYPAIR_ALPHA;
+        String message = "message";
 
         // When
         try (MockedStatic<KeyPairUtility> keyPairUtilityMock = Mockito.mockStatic(KeyPairUtility.class)) {
 
-            Mockito.when(keyStoreService.readPrivateKeyFromKeystore(address.value())).thenReturn(keyPair.getPrivate());
+            Mockito.when(keyStoreService.readPrivateKeyFromKeystore(address.value())).thenReturn(VALID_KEY_PAIR.getPrivate());
 
             keyPairUtilityMock.when(() -> KeyPairUtility.sign(Mockito.any(), Mockito.any())).thenThrow(CryptographicException.class);
 
             // Then
-            Assertions.assertThrows(CryptographicException.class, () -> walletService.sign(address, "message"), "Exception should be thrown in the event of signing failure.");
+            Assertions.assertThrows(CryptographicException.class, () -> walletService.sign(address, message), "Exception should be thrown in the event of signing failure.");
 
             Mockito.verify(keyStoreService, Mockito.times(1)).readPrivateKeyFromKeystore(address.value());
         }
@@ -478,15 +474,17 @@ public class WalletServiceTest {
     @Test
     void testVerifySignature_returnsTrue() {
         // Given
-        KeyPair keyPair = WalletTestData.KEYPAIR_ALPHA;
+        String message = "message";
+
+        TransactionSignature signature = TransactionSignatureTestFactory.getTransactionSignature();
 
         // When
         try (MockedStatic<KeyPairUtility> keyPairUtilityMock = Mockito.mockStatic(KeyPairUtility.class)) {
             
-            keyPairUtilityMock.when(() -> KeyPairUtility.loadPublicKey(keyPair.getPublic().getEncoded())).thenReturn(keyPair.getPublic());
-            keyPairUtilityMock.when(() -> KeyPairUtility.verifySignature(keyPair.getPublic(), "message", "signature")).thenReturn(true);
+            keyPairUtilityMock.when(() -> KeyPairUtility.loadPublicKey(VALID_KEY_PAIR.getPublic().getEncoded())).thenReturn(VALID_KEY_PAIR.getPublic());
+            keyPairUtilityMock.when(() -> KeyPairUtility.verifySignature(VALID_KEY_PAIR.getPublic(), message.getBytes(StandardCharsets.UTF_8), signature.toBytes())).thenReturn(true);
 
-            boolean isValid = walletService.verifySignature(keyPair.getPublic().getEncoded(), "message", "signature");
+            boolean isValid = walletService.verifySignature(VALID_KEY_PAIR.getPublic().getEncoded(), message, signature);
 
             // Then
             Assertions.assertTrue(isValid);
@@ -496,15 +494,17 @@ public class WalletServiceTest {
     @Test
     void testVerifySignature_returnsFalse() {
         // Given
-        KeyPair keyPair = WalletTestData.KEYPAIR_ALPHA;
+        String message = "message";
+
+        TransactionSignature signature = TransactionSignatureTestFactory.getTransactionSignature();
 
         // When
         try (MockedStatic<KeyPairUtility> keyPairUtilityMock = Mockito.mockStatic(KeyPairUtility.class)) {
 
-            keyPairUtilityMock.when(() -> KeyPairUtility.loadPublicKey(keyPair.getPublic().getEncoded())).thenReturn(keyPair.getPublic());
-            keyPairUtilityMock.when(() -> KeyPairUtility.verifySignature(keyPair.getPublic(), "message", "signature")).thenReturn(false);
+            keyPairUtilityMock.when(() -> KeyPairUtility.loadPublicKey(VALID_KEY_PAIR.getPublic().getEncoded())).thenReturn(VALID_KEY_PAIR.getPublic());
+            keyPairUtilityMock.when(() -> KeyPairUtility.verifySignature(VALID_KEY_PAIR.getPublic(), message.getBytes(StandardCharsets.UTF_8), signature.toBytes())).thenReturn(false);
 
-            boolean isValid = walletService.verifySignature(keyPair.getPublic().getEncoded(), "message", "signature");
+            boolean isValid = walletService.verifySignature(VALID_KEY_PAIR.getPublic().getEncoded(), message, signature);
 
             // Then
             Assertions.assertFalse(isValid);
@@ -514,38 +514,42 @@ public class WalletServiceTest {
     @Test
     void testVerifySignature_loadPublicKeyFailure_throwsCryptographicException() {
         // Given
-        KeyPair keyPair = WalletTestData.KEYPAIR_ALPHA;
+        String message = "message";
+
+        TransactionSignature signature = TransactionSignatureTestFactory.getTransactionSignature();
 
         // When
         try (MockedStatic<KeyPairUtility> keyPairUtilityMock = Mockito.mockStatic(KeyPairUtility.class)) {
 
-            keyPairUtilityMock.when(() -> KeyPairUtility.loadPublicKey(keyPair.getPublic().getEncoded())).thenThrow(CryptographicException.class);
+            keyPairUtilityMock.when(() -> KeyPairUtility.loadPublicKey(VALID_KEY_PAIR.getPublic().getEncoded())).thenThrow(CryptographicException.class);
 
             // Then
-            Assertions.assertThrows(CryptographicException.class, () -> walletService.verifySignature(keyPair.getPublic().getEncoded(), "message", "signature"), "Exception should be thrown in the event of public key loading failure.");
+            Assertions.assertThrows(CryptographicException.class, () -> walletService.verifySignature(VALID_KEY_PAIR.getPublic().getEncoded(), message, signature), "Exception should be thrown in the event of public key loading failure.");
         }
     }
 
     @Test
     void testVerifySignature_verificationFailure_throwsCryptographicException() {
         // Given
-        KeyPair keyPair = WalletTestData.KEYPAIR_ALPHA;
+        String message = "message";
+
+        TransactionSignature signature = TransactionSignatureTestFactory.getTransactionSignature();
 
         // When
         try (MockedStatic<KeyPairUtility> keyPairUtilityMock = Mockito.mockStatic(KeyPairUtility.class)) {
 
-            keyPairUtilityMock.when(() -> KeyPairUtility.loadPublicKey(keyPair.getPublic().getEncoded())).thenReturn(keyPair.getPublic());
-            keyPairUtilityMock.when(() -> KeyPairUtility.verifySignature(keyPair.getPublic(), "message", "signature")).thenThrow(CryptographicException.class);
+            keyPairUtilityMock.when(() -> KeyPairUtility.loadPublicKey(VALID_KEY_PAIR.getPublic().getEncoded())).thenReturn(VALID_KEY_PAIR.getPublic());
+            keyPairUtilityMock.when(() -> KeyPairUtility.verifySignature(VALID_KEY_PAIR.getPublic(), message.getBytes(StandardCharsets.UTF_8), signature.toBytes())).thenThrow(CryptographicException.class);
 
             // Then
-            Assertions.assertThrows(CryptographicException.class, () -> walletService.verifySignature(keyPair.getPublic().getEncoded(), "message", "signature"), "Exception should be thrown in the event of verification failure.");
+            Assertions.assertThrows(CryptographicException.class, () -> walletService.verifySignature(VALID_KEY_PAIR.getPublic().getEncoded(), message, signature), "Exception should be thrown in the event of verification failure.");
         }
     }
 
     @Test
     void testGetPublicKeyEncoded_returnsEncodedPublicKey() {
         // Given
-        AddressModel address = WalletTestData.ADDRESS_ALPHA;
+        Address address = AddressTestFactory.getAddress();
 
         byte[] keyBytes = new byte[]{};
 
@@ -561,7 +565,7 @@ public class WalletServiceTest {
     @Test
     void testGetPublicKeyEncoded_addressNotFound_throwsNotFoundException() {
         // Given
-        AddressModel address = WalletTestData.ADDRESS_ALPHA;
+        Address address = AddressTestFactory.getAddress();
 
         // When
         Mockito.when(walletRepository.retrievePublicKeyByAddress(address.value())).thenThrow(NoDataFoundException.class);
@@ -574,7 +578,7 @@ public class WalletServiceTest {
     @Test
     void testGetPublicKeyEncoded_queryFailure_throwsDataAccessException() {
         // Given
-        AddressModel address = WalletTestData.ADDRESS_ALPHA;
+        Address address = AddressTestFactory.getAddress();
 
         // When
         Mockito.when(walletRepository.retrievePublicKeyByAddress(address.value())).thenThrow(DataAccessException.class);

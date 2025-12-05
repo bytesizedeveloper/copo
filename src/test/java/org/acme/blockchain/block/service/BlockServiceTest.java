@@ -2,7 +2,7 @@ package org.acme.blockchain.block.service;
 
 import org.acme.blockchain.block.model.BlockModel;
 import org.acme.blockchain.block.repository.BlockRepository;
-import org.acme.blockchain.test_common.test_data.BlockTestData;
+import org.instancio.Instancio;
 import org.jooq.exception.NoDataFoundException;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -24,7 +24,7 @@ public class BlockServiceTest {
     @Test
     void testGetLatestBlock_returnsLatest() {
         // Given
-        BlockModel block = BlockTestData.getBlock();
+        BlockModel block = Instancio.create(BlockModel.class);
 
         // When
         Mockito.when(blockRepository.getLatestBlock()).thenReturn(block);
@@ -38,7 +38,7 @@ public class BlockServiceTest {
     @Test
     void testGetLatestBlock_noLatest() {
         // Given
-        BlockModel genesis = BlockTestData.getGenesisBlock();
+        BlockModel genesis = Instancio.create(BlockModel.class);
 
         // When
         Mockito.when(blockRepository.getLatestBlock()).thenThrow(NoDataFoundException.class);
@@ -47,13 +47,13 @@ public class BlockServiceTest {
         BlockModel latest = blockService.getLatestBlock();
 
         Assertions.assertNotNull(latest.getHashId());
-        Assertions.assertEquals(64, latest.getHashId().length());
+        Assertions.assertEquals(64, latest.getHashId().value().length());
         Assertions.assertEquals(genesis.getPreviousHashId(), latest.getPreviousHashId());
         Assertions.assertEquals(genesis.getTransactions(), latest.getTransactions());
         Assertions.assertEquals(genesis.getHeight(), latest.getHeight());
         Assertions.assertEquals(genesis.getNonce(), latest.getNonce());
         Assertions.assertEquals(genesis.getDifficulty(), latest.getDifficulty());
-        Assertions.assertEquals(genesis.getReward(), latest.getReward());
+        Assertions.assertEquals(genesis.getRewardAmount(), latest.getRewardAmount());
         Assertions.assertNotNull(latest.getCreatedAt());
         Assertions.assertNotNull(latest.getMinedAt());
 

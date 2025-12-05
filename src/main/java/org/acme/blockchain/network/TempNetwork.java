@@ -1,13 +1,12 @@
 package org.acme.blockchain.network;
 
-import org.acme.blockchain.block.model.BlockModel;
-import org.acme.blockchain.block.repository.BlockRepository;
-import org.acme.blockchain.transaction.model.TransactionModel;
-import org.acme.blockchain.transaction.model.UtxoModel;
-import org.acme.blockchain.transaction.repository.TransactionRepository;
-import org.acme.blockchain.transaction.repository.UtxoRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import org.acme.blockchain.block.model.BlockModel;
+import org.acme.blockchain.block.repository.BlockRepository;
+import org.acme.blockchain.transaction.model.TransferModel;
+import org.acme.blockchain.transaction.repository.TransactionRepository;
+import org.acme.blockchain.transaction.repository.UtxoRepository;
 
 @ApplicationScoped
 public class TempNetwork {
@@ -31,12 +30,11 @@ public class TempNetwork {
 
     public void broadcast(BlockModel blockModel) {
         blockRepository.insert(blockModel);
-        transactionRepository.batchInsert(blockModel.getTransactions());
-        for (TransactionModel transaction : blockModel.getTransactions()) {
-            if (!transaction.isReward()) {
-                utxoRepository.updateUnspentUtxoToSpent(transaction.getInputs().stream().map(UtxoModel::getId).toList());
-            }
-            utxoRepository.batchInsert(transaction.getOutputs());
+
+        transactionRepository.batchInsert(blockModel.getTransfers());
+        for (TransferModel transfer : blockModel.getTransfers()) {
+            //utxoRepository.updateUnspentUtxoToSpent(transfer.getInputs().stream().map(UtxoModel::getId).toList());
+            utxoRepository.batchInsert(transfer.getOutputs());
         }
     }
 }

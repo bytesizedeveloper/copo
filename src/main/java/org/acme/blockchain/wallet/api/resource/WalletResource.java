@@ -12,7 +12,7 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
 import org.acme.blockchain.common.api.contract.ErrorResponse;
-import org.acme.blockchain.common.model.AddressModel;
+import org.acme.blockchain.common.model.Address;
 import org.acme.blockchain.wallet.api.contract.WalletResponse;
 import org.acme.blockchain.wallet.mapper.WalletMapper;
 import org.acme.blockchain.wallet.service.WalletService;
@@ -106,6 +106,9 @@ public class WalletResource {
      * This endpoint triggers the retrieval of a local COPO wallet by querying the local database for
      * an address that corresponds to the input parameter. Only the public information will be
      * served to the client.
+     *
+     * @param address The unique hash address of the wallet to retrieve.
+     * @return The HTTP response containing the retrieved {@link WalletResponse} (200) or an error (400/404/500).
      */
     @GET
     @Path("/{address}")
@@ -150,7 +153,7 @@ public class WalletResource {
     public Response get(@PathParam("address") String address) {
         try {
             WalletResponse response = WalletMapper.INSTANCE.modelToResponse(
-                    walletService.get(new AddressModel(address))
+                    walletService.get(new Address(address))
             );
 
             return Response.ok().entity(response).build();

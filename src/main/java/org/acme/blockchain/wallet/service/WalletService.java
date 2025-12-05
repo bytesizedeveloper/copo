@@ -5,15 +5,17 @@ import jakarta.inject.Inject;
 import jakarta.ws.rs.NotFoundException;
 import org.acme.blockchain.common.exception.CryptographicException;
 import org.acme.blockchain.common.exception.KeystoreException;
-import org.acme.blockchain.common.model.AddressModel;
+import org.acme.blockchain.common.model.Address;
 import org.acme.blockchain.common.utility.HashUtility;
-import org.acme.blockchain.wallet.utility.KeyPairUtility;
 import org.acme.blockchain.common.utility.TimestampUtility;
+import org.acme.blockchain.transaction.model.TransactionSignature;
 import org.acme.blockchain.wallet.model.WalletModel;
 import org.acme.blockchain.wallet.repository.WalletRepository;
+import org.acme.blockchain.wallet.utility.KeyPairUtility;
 import org.jooq.exception.DataAccessException;
 import org.jooq.exception.NoDataFoundException;
 
+import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import java.security.PrivateKey;
 import java.security.PublicKey;
@@ -55,7 +57,6 @@ public class WalletService {
      * <li>Checking the {@code WalletRepository} for an existing wallet with the generated address.</li>
      * <li>Persisting the Private Key securely using the {@code KeyStoreService}.</li>
      * <li>Saving the public {@code WalletModel} data via the {@code WalletRepository}.</li>
-     * <li>Broadcasting the new wallet creation to network peers.</li>
      * </ol>
      *
      * @return A {@link WalletModel} containing the newly generated address, public key information, and timestamp.
@@ -66,7 +67,7 @@ public class WalletService {
      */
     public WalletModel create() {
         KeyPair keyPair = KeyPairUtility.generateKeyPair();
-        AddressModel address = generateAddress(keyPair.getPublic());
+        Address address = generateAddress(keyPair.getPublic());
 
         if (walletRepository.exists(address.value())) {
             throw new IllegalStateException("A wallet with this address already exists.");
@@ -77,19 +78,17 @@ public class WalletService {
         WalletModel wallet = initialise(keyPair, address);
         walletRepository.insert(wallet);
 
-        // Broadcast
-
         return wallet;
     }
 
     /**
      * Retrieves the public wallet metadata (address, public key, timestamp) from the database using the unique wallet address.
      *
-     * @param address The {@link AddressModel} containing the unique wallet address to look up.
+     * @param address The {@link Address} containing the unique wallet address to look up.
      * @return The {@link WalletModel} instance.
      * @throws NotFoundException If no wallet exists for the given address in the database (i.e., {@code NoDataFoundException} is caught).
      */
-    public WalletModel get(AddressModel address) {
+    public WalletModel get(Address address) {
         try {
             return walletRepository.retrieveWalletByAddress(address.value());
 
@@ -104,18 +103,18 @@ public class WalletService {
      * The private key is securely retrieved from the key store using the address as the alias.
      * This method is typically used to sign a transaction hash ID, ensuring the integrity and authenticity of the sender.
      *
-     * @param address The {@link AddressModel} acting as the alias to retrieve the private key.
+     * @param address The {@link Address} acting as the alias to retrieve the private key.
      * @param unsignedMessage The string representation of the data to be signed (e.g., the transaction hash ID).
      * @return A **Hex-encoded string** representing the digital signature.
      * @throws KeystoreException If the private key cannot be read from the key store (e.g., file not found, incorrect password, or alias missing).
      * @throws CryptographicException If the underlying cryptographic signing process fails.
      */
-    public String sign(AddressModel address, String unsignedMessage) {
+    public TransactionSignature sign(Address address, String unsignedMessage) {
         PrivateKey privateKey = getPrivateKey(address);
 
-        byte[] signature = KeyPairUtility.sign(privateKey, unsignedMessage);
+        byte[] signature = KeyPairUtility.sign(privateKey, unsignedMessage.getBytes(StandardCharsets.UTF_8));
 
-        return HashUtility.bytesToHex(signature);
+        return new TransactionSignature(HashUtility.bytesToHex(signature));
     }
 
     /**
@@ -129,20 +128,20 @@ public class WalletService {
      * @return {@code true} if the signature is valid for the message and public key; {@code false} otherwise.
      * @throws CryptographicException If the public key cannot be loaded or the verification process setup fails.
      */
-    public boolean verifySignature(byte[] keyBytes, String originalMessage, String signature) {
+    public boolean verifySignature(byte[] keyBytes, String originalMessage, TransactionSignature signature) {
         PublicKey publicKey = KeyPairUtility.loadPublicKey(keyBytes);
 
-        return KeyPairUtility.verifySignature(publicKey, originalMessage, signature);
+        return KeyPairUtility.verifySignature(publicKey, originalMessage.getBytes(StandardCharsets.UTF_8), signature.toBytes());
     }
 
     /**
      * Retrieves the wallet's raw encoded **Public Key** by querying the database using the wallet address.
      *
-     * @param address The {@link AddressModel} to look up.
+     * @param address The {@link Address} to look up.
      * @return The raw encoded public key as a {@code byte[]} array.
      * @throws NotFoundException If the wallet and its public key do not exist in the database (i.e., {@code NoDataFoundException} is caught).
      */
-    public byte[] getPublicKeyEncoded(AddressModel address) {
+    public byte[] getPublicKeyEncoded(Address address) {
         try {
             return walletRepository.retrievePublicKeyByAddress(address.value());
         } catch (NoDataFoundException e) {
@@ -153,11 +152,11 @@ public class WalletService {
     /**
      * Retrieves the **Private Key** associated with the given address by reading it from the secure {@code KeystoreService}.
      *
-     * @param address The {@link AddressModel} acting as the alias for key retrieval.
+     * @param address The {@link Address} acting as the alias for key retrieval.
      * @return The {@link PrivateKey} instance.
      * @throws KeystoreException If the private key cannot be read from the key store (e.g., file not found, incorrect password, or alias missing).
      */
-    private PrivateKey getPrivateKey(AddressModel address) {
+    private PrivateKey getPrivateKey(Address address) {
         return keyStoreService.readPrivateKeyFromKeystore(address.value());
     }
 
@@ -166,25 +165,25 @@ public class WalletService {
      * double-hashing scheme (SHA-256 followed by BLAKE2b-256).
      *
      * @param publicKey The public key used to identify the wallet owner.
-     * @return An {@link AddressModel} instance containing the formatted wallet address, prefixed with **"COPO_"**.
+     * @return An {@link Address} instance containing the formatted wallet address, prefixed with **"COPO_"**.
      */
-    private AddressModel generateAddress(PublicKey publicKey) {
+    private Address generateAddress(PublicKey publicKey) {
         byte[] publicKeyBytes = publicKey.getEncoded();
         byte[] sha256Hash = HashUtility.calculateSHA256(publicKeyBytes);
         byte[] blake2b256Hash = HashUtility.calculateBLAKE2b256(sha256Hash);
 
-        return new AddressModel(AddressModel.PREFIX + HashUtility.bytesToHex(blake2b256Hash));
+        return new Address(Address.PREFIX + HashUtility.bytesToHex(blake2b256Hash));
     }
 
     /**
-     * Creates and initializes a complete {@link WalletModel} domain object
+     * Creates and initialises a complete {@link WalletModel} domain object
      * with the generated keys, encoded public key, and the creation timestamp.
      *
      * @param keyPair The generated cryptographic key pair.
      * @param address The derived public wallet address.
-     * @return A fully initialized {@link WalletModel} instance.
+     * @return A fully initialised {@link WalletModel} instance.
      */
-    private WalletModel initialise(KeyPair keyPair, AddressModel address) {
+    private WalletModel initialise(KeyPair keyPair, Address address) {
         return WalletModel.builder()
                 .keyPair(keyPair)
                 .address(address)

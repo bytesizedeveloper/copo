@@ -1,7 +1,8 @@
 package org.acme.blockchain.wallet.mapper;
 
 import jooq.tables.records.WalletRecord;
-import org.acme.blockchain.test_common.test_data.WalletTestData;
+import org.acme.blockchain.common.model.Address;
+import org.acme.blockchain.test_common.factory.WalletTestFactory;
 import org.acme.blockchain.wallet.api.contract.WalletResponse;
 import org.acme.blockchain.wallet.model.WalletModel;
 import org.junit.jupiter.api.Assertions;
@@ -12,9 +13,13 @@ public class WalletMapperTest {
     @Test
     void testModelToResponse() {
         // Given
-        WalletModel model = WalletTestData.getWalletAlpha();
+        WalletModel model = WalletTestFactory.getWalletModel();
 
-        WalletResponse expected = WalletTestData.getResponseAlpha();
+        WalletResponse expected = WalletResponse.builder()
+                .address(model.address().value())
+                .publicKeyEncoded(model.publicKeyEncoded())
+                .createdAt(model.createdAt())
+                .build();
 
         // When
         WalletResponse actual = WalletMapper.INSTANCE.modelToResponse(model);
@@ -28,9 +33,14 @@ public class WalletMapperTest {
     @Test
     void testModelToRecord() {
         // Given
-        WalletModel model = WalletTestData.getWalletAlpha();
+        WalletModel model = WalletTestFactory.getWalletModel();
 
-        WalletRecord expected = WalletTestData.getRecordPreInsert();
+        WalletRecord expected = new WalletRecord(
+                null,
+                model.address().value(),
+                model.publicKeyEncoded(),
+                model.createdAt()
+        );
 
         // When
         WalletRecord actual = WalletMapper.INSTANCE.modelToRecord(model);
@@ -42,9 +52,13 @@ public class WalletMapperTest {
     @Test
     void testRecordToModel() {
         // Given
-        WalletRecord record = WalletTestData.getRecordPostInsert();
+        WalletRecord record = WalletTestFactory.getWalletRecord();
 
-        WalletModel expected = WalletTestData.getWalletAlpha();
+        WalletModel expected = WalletModel.builder()
+                .address(new Address(record.getAddress()))
+                .publicKeyEncoded(record.getPublicKeyEncoded())
+                .createdAt(record.getCreatedAt())
+                .build();
 
         // When
         WalletModel actual = WalletMapper.INSTANCE.recordToModel(record);

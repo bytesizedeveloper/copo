@@ -1,6 +1,6 @@
 package org.acme.blockchain.common.service;
 
-import org.acme.blockchain.common.model.CoinModel;
+import org.acme.blockchain.common.model.Coin;
 import jakarta.enterprise.context.ApplicationScoped;
 
 import java.math.BigDecimal;
@@ -8,7 +8,7 @@ import java.math.BigDecimal;
 @ApplicationScoped
 public class FeeService {
 
-    public CoinModel calculateFee() {
-        return new CoinModel(BigDecimal.valueOf(0.00000001));
+    public Coin calculateFee() {
+        return new Coin(BigDecimal.valueOf(0.12345678));
     }
 }

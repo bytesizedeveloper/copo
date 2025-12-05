@@ -1,21 +1,17 @@
 package org.acme.blockchain.transaction.service.validator.reward;
 
-import org.acme.blockchain.common.model.AddressModel;
-import org.acme.blockchain.transaction.model.TransactionModel;
+import jakarta.enterprise.context.ApplicationScoped;
+import org.acme.blockchain.transaction.model.RewardModel;
 import org.acme.blockchain.transaction.model.TransactionValidationModel;
 import org.acme.blockchain.transaction.service.validator.RewardValidator;
-import jakarta.enterprise.context.ApplicationScoped;
 
 @ApplicationScoped
 public class RewardAddressValidator implements RewardValidator {
 
     @Override
-    public void validate(TransactionModel transaction, TransactionValidationModel validationResult) {
-        AddressModel sender = transaction.getSenderAddress();
-        AddressModel recipient = transaction.getRecipientAddress();
-
-        if (!sender.equals(recipient)) {
-            validationResult.addFailure(transaction + "Sender and recipient address are not equal: " + sender);
+    public void validate(RewardModel reward, TransactionValidationModel validationResult) {
+        if (!reward.getSenderAddress().equals(reward.getRecipientAddress())) {
+            validationResult.addFailure(reward + " Sender and recipient address are not equal: " + reward.getSenderAddress());
         }
     }
 }

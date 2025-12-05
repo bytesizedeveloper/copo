@@ -1,9 +1,9 @@
 package org.acme.blockchain.transaction.service.validator;
 
-import org.acme.blockchain.transaction.model.TransactionModel;
+import org.acme.blockchain.transaction.model.RewardModel;
 import org.acme.blockchain.transaction.model.TransactionValidationModel;
 
 public interface RewardValidator {
 
-    void validate(TransactionModel transaction, TransactionValidationModel validationResult);
+    void validate(RewardModel reward, TransactionValidationModel validationResult);
 }

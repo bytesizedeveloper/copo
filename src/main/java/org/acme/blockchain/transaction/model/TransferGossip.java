@@ -3,7 +3,7 @@ package org.acme.blockchain.transaction.model;
 import lombok.Data;
 
 @Data
-public class TransactionGossip {
+public class TransferGossip {
 
     private int confirmations = 0;
 

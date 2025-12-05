@@ -1,6 +1,6 @@
 package org.acme.blockchain.common.mapper;
 
-import org.acme.blockchain.common.model.CoinModel;
+import org.acme.blockchain.common.model.Coin;
 import org.mapstruct.Mapper;
 
 import java.math.BigDecimal;
@@ -8,11 +8,11 @@ import java.math.BigDecimal;
 @Mapper
 public interface CoinMapper {
 
-    default CoinModel map(BigDecimal coin) {
-        return new CoinModel(coin);
+    default Coin map(BigDecimal coin) {
+        return new Coin(coin);
     }
 
-    default BigDecimal map(CoinModel coin) {
+    default BigDecimal map(Coin coin) {
         return coin.value();
     }
 }

@@ -53,6 +53,8 @@ dependencies {
     testImplementation 'io.rest-assured:rest-assured'
     testImplementation "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:$jacksonDatatypeVersion"
     testImplementation "org.testcontainers:postgresql:$postgresTestContainerVersion"
+    testImplementation "org.skyscreamer:jsonassert:$skyscreamerVersion"
+    testImplementation "org.instancio:instancio-junit:$instancioVersion"
 }
 
 group = 'org.acme.blockchain'

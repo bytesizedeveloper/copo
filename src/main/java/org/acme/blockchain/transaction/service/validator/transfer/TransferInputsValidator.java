@@ -1,52 +1,51 @@
 package org.acme.blockchain.transaction.service.validator.transfer;
 
-import org.acme.blockchain.common.service.TransactionCacheService;
-import org.acme.blockchain.common.model.CoinModel;
-import org.acme.blockchain.transaction.model.TransactionModel;
-import org.acme.blockchain.transaction.model.TransactionValidationModel;
-import org.acme.blockchain.transaction.model.UtxoModel;
-import org.acme.blockchain.transaction.model.enumeration.OutputIndex;
-import org.acme.blockchain.transaction.repository.UtxoRepository;
-import org.acme.blockchain.transaction.service.validator.TransferValidator;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import org.acme.blockchain.common.model.Coin;
+import org.acme.blockchain.common.service.TransferCacheService;
+import org.acme.blockchain.transaction.model.TransactionValidationModel;
+import org.acme.blockchain.transaction.model.TransferModel;
+import org.acme.blockchain.transaction.model.UtxoModel;
+import org.acme.blockchain.transaction.repository.UtxoRepository;
+import org.acme.blockchain.transaction.service.validator.TransferValidator;
 
 import java.util.List;
 
 @ApplicationScoped
 public class TransferInputsValidator implements TransferValidator {
 
-    private final TransactionCacheService cache;
+    private final TransferCacheService cache;
 
     private final UtxoRepository utxoRepository;
 
     @Inject
-    public TransferInputsValidator(TransactionCacheService cache, UtxoRepository utxoRepository) {
+    public TransferInputsValidator(TransferCacheService cache, UtxoRepository utxoRepository) {
         this.cache = cache;
         this.utxoRepository = utxoRepository;
     }
 
     @Override
-    public void validate(TransactionModel transaction, TransactionValidationModel validationResult) {
-        List<UtxoModel> inputs = transaction.getInputs();
+    public void validate(TransferModel transfer, TransactionValidationModel validationResult) {
+        List<UtxoModel> inputs = transfer.getInputs();
 
         if (inputs == null) {
-            validationResult.addFailure(transaction + "Inputs are null.");
+            validationResult.addFailure(transfer + " Inputs are null.");
         }
 
         if (inputs != null && inputs.isEmpty()) {
-            validationResult.addFailure(transaction + "Inputs are empty.");
+            validationResult.addFailure(transfer + " Inputs are empty.");
         }
 
         if (inputs != null && !inputs.isEmpty()) {
 
             boolean isAfforded = true;
 
-            CoinModel totalValueOfInputs = transaction.getTotalValueOfInputs();
-            CoinModel totalRequired = transaction.getTotalRequired();
+            Coin totalValueOfInputs = transfer.getTotalValueOfInputs();
+            Coin totalRequired = transfer.getTotalRequired();
 
             if (totalValueOfInputs.isLessThan(totalRequired)) {
-                validationResult.addFailure("Inputs cannot afford transaction ("
+                validationResult.addFailure(transfer + " Inputs cannot afford transaction ("
                         + totalRequired + "): " + totalValueOfInputs);
                 isAfforded = false;
             }
@@ -55,29 +54,24 @@ public class TransferInputsValidator implements TransferValidator {
 
                 for (UtxoModel input : inputs) {
 
-                    if (input.getTransactionHashId() != null && cache.containsInput(input.getTransactionHashId())) {
+                    if (input.getId() != null && cache.containsInput(input.getId())) {
                         validationResult.addFailure(input + " Input double spent pending mining.");
                         break;
                     }
 
-                    if (utxoRepository.isSpent(input)) {
+                    if (utxoRepository.isSpent(input.getId())) {
                         validationResult.addFailure(input + " Input double spent.");
                         break;
                     }
 
-                    if (!(OutputIndex.RECIPIENT.getIndex().equals(input.getOutputIndex())
-                            || OutputIndex.SENDER.getIndex().equals(input.getOutputIndex()))) {
-                        validationResult.addFailure(input + " Input output index invalid format (00 or 01): " + input.getOutputIndex());
-                    }
-
-                    if (!transaction.getSenderAddress().equals(input.getRecipientAddress())) {
+                    if (!transfer.getSenderAddress().equals(input.getRecipientAddress())) {
                         validationResult.addFailure(input + " Input recipient does not equal transaction sender ("
-                                + transaction.getSenderAddress() + "): " + input.getRecipientAddress());
+                                + transfer.getSenderAddress() + "): " + input.getRecipientAddress());
                     }
 
-                    if (transaction.getCreatedAt().isBefore(input.getCreatedAt())) {
+                    if (transfer.getCreatedAt().isBefore(input.getCreatedAt())) {
                         validationResult.addFailure(input + " Input timestamp does not precede transaction timestamp ("
-                                + transaction.getCreatedAt() + "): " + input.getCreatedAt());
+                                + transfer.getCreatedAt() + "): " + input.getCreatedAt());
                     }
 
                     if (input.isSpent()) {

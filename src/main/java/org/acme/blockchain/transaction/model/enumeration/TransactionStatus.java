@@ -1,20 +1,41 @@
 package org.acme.blockchain.transaction.model.enumeration;
 
+import lombok.Getter;
+
+import java.util.List;
+
+@Getter
 public enum TransactionStatus {
 
-    INITIALISED,
+    INITIALISED("INI"),
 
-    VALIDATED,
+    VALIDATED("VAL"),
 
-    INVALIDATED,
+    INVALIDATED("INV"),
 
-    BROADCASTED,
+    BROADCASTED("BRD"),
 
-    CONFIRMED,
+    CONFIRMED("CFM"),
 
-    REJECTED,
+    REJECTED("REJ"),
 
-    MINED,
+    MINED("MND"),
 
-    FAILED,
+    FAILED("FAI");
+
+    private static final List<TransactionStatus> TERMINAL;
+
+    static {
+        TERMINAL = List.of(INVALIDATED, REJECTED, MINED, FAILED);
+    }
+
+    private final String status;
+
+    TransactionStatus(String status) {
+        this.status = status;
+    }
+
+    public static List<TransactionStatus> getTerminal() {
+        return TERMINAL;
+    }
 }

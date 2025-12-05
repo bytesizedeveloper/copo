@@ -5,8 +5,9 @@ import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
 import jooq.tables.Wallet;
+import org.acme.blockchain.test_common.factory.AddressTestFactory;
+import org.acme.blockchain.test_common.factory.WalletTestFactory;
 import org.acme.blockchain.test_common.resource.PostgresWithFlywayTestResource;
-import org.acme.blockchain.test_common.test_data.WalletTestData;
 import org.acme.blockchain.wallet.model.WalletModel;
 import org.jooq.DSLContext;
 import org.jooq.SQLDialect;
@@ -38,7 +39,7 @@ public class WalletRepositoryTest {
     @Test
     void testInsert() {
         // Given
-        WalletModel toInsert = WalletTestData.getWalletAlpha();
+        WalletModel toInsert = WalletTestFactory.getWalletModel();
 
         // When
         walletRepository.insert(toInsert);
@@ -50,7 +51,7 @@ public class WalletRepositoryTest {
     @Test
     void testRetrieveWalletByAddress_addressFound_returnsPublicKey() {
         // Given
-        WalletModel toInsert = WalletTestData.getWalletAlpha();
+        WalletModel toInsert = WalletTestFactory.getWalletModel();
 
         walletRepository.insert(toInsert);
 
@@ -67,7 +68,7 @@ public class WalletRepositoryTest {
     @Test
     void testRetrieveWalletByAddress_addressNotFound_throwsNoDataFoundException() {
         // Given
-        String address = WalletTestData.ADDRESS_ALPHA.value();
+        String address = AddressTestFactory.getAddressString();
 
         // When & Then
         Assertions.assertThrows(NoDataFoundException.class, () -> walletRepository.retrieveWalletByAddress(address));
@@ -76,7 +77,7 @@ public class WalletRepositoryTest {
     @Test
     void testRetrievePublicKeyByAddress_addressFound_returnsPublicKey() {
         // Given
-        WalletModel wallet = WalletTestData.getWalletAlpha();
+        WalletModel wallet = WalletTestFactory.getWalletModel();
 
         walletRepository.insert(wallet);
 
@@ -90,7 +91,7 @@ public class WalletRepositoryTest {
     @Test
     void testRetrievePublicKeyByAddress_addressNotFound_throwsNoDataFoundException() {
         // Given
-        String address = WalletTestData.ADDRESS_ALPHA.value();
+        String address = AddressTestFactory.getAddressString();
 
         // When & Then
         Assertions.assertThrows(NoDataFoundException.class, () -> walletRepository.retrievePublicKeyByAddress(address));
@@ -99,7 +100,7 @@ public class WalletRepositoryTest {
     @Test
     void testExists_addressFound_returnsTrue() {
         // Given
-        WalletModel wallet = WalletTestData.getWalletAlpha();
+        WalletModel wallet = WalletTestFactory.getWalletModel();
 
         walletRepository.insert(wallet);
 
@@ -113,7 +114,7 @@ public class WalletRepositoryTest {
     @Test
     void testExists_addressNotFound_returnsFalse() {
         // Given
-        String address = WalletTestData.ADDRESS_ALPHA.value();
+        String address = AddressTestFactory.getAddressString();
 
         // When
         boolean exists = walletRepository.exists(address);

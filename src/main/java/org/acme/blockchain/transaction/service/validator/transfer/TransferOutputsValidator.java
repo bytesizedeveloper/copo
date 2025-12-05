@@ -1,13 +1,13 @@
 package org.acme.blockchain.transaction.service.validator.transfer;
 
-import org.acme.blockchain.common.model.CoinModel;
-import org.acme.blockchain.transaction.model.TransactionModel;
-import org.acme.blockchain.transaction.model.TransactionValidationModel;
-import org.acme.blockchain.transaction.model.UtxoModel;
-import org.acme.blockchain.transaction.model.enumeration.OutputIndex;
-import org.acme.blockchain.transaction.service.validator.TransferValidator;
 import jakarta.enterprise.context.ApplicationScoped;
 import lombok.extern.slf4j.Slf4j;
+import org.acme.blockchain.common.model.Coin;
+import org.acme.blockchain.transaction.model.TransactionModel;
+import org.acme.blockchain.transaction.model.TransactionValidationModel;
+import org.acme.blockchain.transaction.model.TransferModel;
+import org.acme.blockchain.transaction.model.UtxoModel;
+import org.acme.blockchain.transaction.service.validator.TransferValidator;
 
 import java.util.List;
 
@@ -16,28 +16,28 @@ import java.util.List;
 public class TransferOutputsValidator implements TransferValidator {
 
     @Override
-    public void validate(TransactionModel transaction, TransactionValidationModel validationResult) {
-        List<UtxoModel> outputs = transaction.getOutputs();
+    public void validate(TransferModel transfer, TransactionValidationModel validationResult) {
+        List<UtxoModel> outputs = transfer.getOutputs();
 
         if (outputs == null) {
-            validationResult.addFailure(transaction + "Outputs are null.");
+            validationResult.addFailure(transfer + " Outputs are null.");
         }
 
         if (outputs != null && outputs.isEmpty()) {
-            validationResult.addFailure(transaction + "Outputs are empty.");
+            validationResult.addFailure(transfer + " Outputs are empty.");
         }
 
         if (outputs != null && outputs.size() == 1) {
-            validateRecipient(transaction, validationResult, outputs.getFirst());
+            validateRecipient(transfer, validationResult, outputs.getFirst());
         }
 
         if (outputs != null && outputs.size() == 2) {
-            validateRecipient(transaction, validationResult, outputs.getFirst());
-            validateSender(transaction, validationResult, outputs.get(1));
+            validateRecipient(transfer, validationResult, outputs.getFirst());
+            validateSender(transfer, validationResult, outputs.get(1));
         }
 
         if (outputs != null && outputs.size() > 2) {
-            validationResult.addFailure(transaction + "Outputs size exceeds maximum expected size (2): " + outputs.size());
+            validationResult.addFailure(transfer + " Outputs size exceeds maximum expected size (2): " + outputs.size());
         }
     }
 
@@ -46,15 +46,10 @@ public class TransferOutputsValidator implements TransferValidator {
             TransactionValidationModel validationResult,
             UtxoModel output
     ) {
-        if (!transaction.getHashId().equals(output.getTransactionHashId())) {
-            validationResult.addFailure(output + " Output transaction hash ID does not equal parent transaction hash ID ("
-                    + transaction.getHashId() + "): " + output.getTransactionHashId());
-        }
-
-        if (!OutputIndex.RECIPIENT.getIndex().equals(output.getOutputIndex())) {
-            validationResult.addFailure(output + " Output index does not equal recipient output index ("
-                    + OutputIndex.RECIPIENT.getIndex() + "): " + output.getOutputIndex());
-        }
+//        if (!transaction.getHashId().equals(output.getTransactionHashId())) {
+//            validationResult.addFailure(output + " Output transaction hash ID does not equal parent transaction hash ID ("
+//                    + transaction.getHashId() + "): " + output.getTransactionHashId());
+//        }
 
         if (!transaction.getRecipientAddress().equals(output.getRecipientAddress())) {
             validationResult.addFailure(output + " Output recipient does not equal transaction recipient ("
@@ -77,37 +72,32 @@ public class TransferOutputsValidator implements TransferValidator {
     }
 
     private void validateSender(
-            TransactionModel transaction,
+            TransferModel transfer,
             TransactionValidationModel validationResult,
             UtxoModel output
     ) {
-        if (!transaction.getHashId().equals(output.getTransactionHashId())) {
-            validationResult.addFailure(output + " Output transaction hash ID does not equal parent transaction hash ID ("
-                    + transaction.getHashId() + "): " + output.getTransactionHashId());
-        }
+//        if (!transfer.getHashId().equals(output.getTransactionHashId())) {
+//            validationResult.addFailure(output + " Output transaction hash ID does not equal parent transaction hash ID ("
+//                    + transfer.getHashId() + "): " + output.getTransactionHashId());
+//        }
 
-        if (!OutputIndex.SENDER.getIndex().equals(output.getOutputIndex())) {
-            validationResult.addFailure(output + " Output index does not equal sender output index ("
-                    + OutputIndex.SENDER.getIndex() + "): " + output.getOutputIndex());
-        }
-
-        if (!transaction.getSenderAddress().equals(output.getRecipientAddress())) {
+        if (!transfer.getSenderAddress().equals(output.getRecipientAddress())) {
             validationResult.addFailure(output + " Output recipient does not equal transaction sender ("
-                    + transaction.getSenderAddress() + "): " + output.getRecipientAddress());
+                    + transfer.getSenderAddress() + "): " + output.getRecipientAddress());
         }
 
-        CoinModel totalValueOfInputs = transaction.getTotalValueOfInputs();
-        CoinModel totalRequired = transaction.getTotalRequired();
-        CoinModel change = totalValueOfInputs.subtract(totalRequired);
+        Coin totalValueOfInputs = transfer.getTotalValueOfInputs();
+        Coin totalRequired = transfer.getTotalRequired();
+        Coin change = totalValueOfInputs.subtract(totalRequired);
 
         if (!change.isEqualTo(output.getAmount())) {
             validationResult.addFailure(output + " Output amount does not equal change ("
                     + change + "): " + output.getAmount());
         }
 
-        if (!transaction.getCreatedAt().equals(output.getCreatedAt())) {
+        if (!transfer.getCreatedAt().equals(output.getCreatedAt())) {
             validationResult.addFailure(output + " Output timestamp does not equal transaction timestamp ("
-                    + transaction.getCreatedAt() + "): " + output.getCreatedAt());
+                    + transfer.getCreatedAt() + "): " + output.getCreatedAt());
         }
 
         if (output.isSpent()) {

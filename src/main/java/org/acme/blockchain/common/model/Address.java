@@ -1,18 +1,13 @@
 package org.acme.blockchain.common.model;
 
-public record AddressModel(String value) {
+public record Address(String value) {
 
     public static final String PREFIX = "COPO_";
 
-    public AddressModel {
+    public Address {
         if (!isValid(value)) {
             throw new IllegalArgumentException("Invalid address: " + value);
         }
-    }
-
-    @Override
-    public String toString() {
-        return this.value.substring(0, 21);
     }
 
     private boolean isValid(String value) {

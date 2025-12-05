@@ -1,37 +1,40 @@
 package org.acme.blockchain.transaction.api.contract;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import org.acme.blockchain.test_common.base.ObjectMapperBase;
-import org.acme.blockchain.test_common.test_data.UtxoTestData;
-import org.acme.blockchain.test_common.test_data.WalletTestData;
-import org.acme.blockchain.transaction.model.enumeration.OutputIndex;
-import org.junit.jupiter.api.Assertions;
+import org.acme.blockchain.test_common.factory.UtxoTestFactory;
 import org.junit.jupiter.api.Test;
-
-import java.math.BigDecimal;
+import org.skyscreamer.jsonassert.JSONAssert;
+import org.skyscreamer.jsonassert.JSONCompareMode;
 
 public class UtxoResponseTest extends ObjectMapperBase {
 
     @Test
-    void testJsonMarshalling() throws JsonProcessingException {
+    void testJsonMarshalling() throws Exception {
         // Given
-        UtxoResponse response = UtxoTestData.getInputResponseAlpha();
+        UtxoResponse response = UtxoTestFactory.getUtxoResponse();
 
         String expected = """
-               {"transaction_hash_id":"%s","output_index":"%s","recipient_address":"%s","amount":%s,"created_at":"%s","is_spent":%b}"""
+                {
+                    "transaction_hash_id": "%s",
+                    "output_index": "%s",
+                    "recipient_address": "%s",
+                    "amount": %s,
+                    "created_at": "%s",
+                    "is_spent": %b
+                }"""
                 .formatted(
-                        UtxoTestData.TRANSACTION_HASH_ALPHA,
-                        OutputIndex.RECIPIENT.getIndex(),
-                        WalletTestData.ADDRESS_ALPHA.value(),
-                        DECIMAL_FORMAT.format(BigDecimal.ONE),
-                        UtxoTestData.NOW.format(DATE_TIME_FORMATTER),
-                        true
+                        response.transactionHashId(),
+                        response.outputIndex(),
+                        response.recipientAddress(),
+                        response.amount(),
+                        response.createdAt(),
+                        response.isSpent()
                 );
 
         // When
         String actual = objectMapper.writeValueAsString(response);
 
         // Then
-        Assertions.assertEquals(expected, actual);
+        JSONAssert.assertEquals(expected, actual, JSONCompareMode.STRICT_ORDER);
     }
 }

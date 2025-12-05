@@ -2,7 +2,6 @@ package org.acme.blockchain.wallet.utility;
 
 import org.acme.blockchain.common.exception.CryptographicException;
 import org.acme.blockchain.common.utility.HashUtility;
-import org.acme.blockchain.test_common.test_data.WalletTestData;
 import org.bouncycastle.jcajce.spec.MLDSAParameterSpec;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
@@ -62,27 +61,28 @@ public class KeyPairUtilityTest {
     @Test
     void testSignAndVerifySignature_validKeyAndSignature() {
         // Given
-        String unsignedMessage = "data";
+        byte[] unsignedMessage = new byte[]{};
 
         // When
         byte[] signatureBytes = KeyPairUtility.sign(VALID_KEY_PAIR.getPrivate(), unsignedMessage);
         String signatureHex = HashUtility.bytesToHex(signatureBytes);
 
         // Then
-        Assertions.assertTrue(KeyPairUtility.verifySignature(VALID_KEY_PAIR.getPublic(), unsignedMessage, signatureHex), "Verification must succeed with the correct key and message.");
+        Assertions.assertTrue(KeyPairUtility.verifySignature(VALID_KEY_PAIR.getPublic(), unsignedMessage, HashUtility.hexToBytes(signatureHex)), "Verification must succeed with the correct key and message.");
     }
 
     @Test
     void testSignAndVerifySignature_modifiedMessage() {
         // Given
-        String unsignedMessage = "data";
+        byte[] unsignedMessage = new byte[]{};
+        byte[] tamperedMessage = new byte[]{1};
 
         // When
         byte[] signatureBytes = KeyPairUtility.sign(VALID_KEY_PAIR.getPrivate(), unsignedMessage);
         String signatureHex = HashUtility.bytesToHex(signatureBytes);
 
         // Then
-        Assertions.assertFalse(KeyPairUtility.verifySignature(VALID_KEY_PAIR.getPublic(), "tampered" + unsignedMessage, signatureHex), "Verification must fail when the message is modified.");
+        Assertions.assertFalse(KeyPairUtility.verifySignature(VALID_KEY_PAIR.getPublic(), tamperedMessage, HashUtility.hexToBytes(signatureHex)), "Verification must fail when the message is modified.");
     }
 
     @Test
@@ -90,14 +90,14 @@ public class KeyPairUtilityTest {
         // Given
         KeyPair wrongKeyPair = KeyPairUtility.generateKeyPair();
 
-        String unsignedMessage = "data";
+        byte[] unsignedMessage = new byte[]{};
 
         // When
         byte[] signatureBytes = KeyPairUtility.sign(VALID_KEY_PAIR.getPrivate(), unsignedMessage);
         String signatureHex = HashUtility.bytesToHex(signatureBytes);
 
         // Then
-        Assertions.assertFalse(KeyPairUtility.verifySignature(wrongKeyPair.getPublic(), unsignedMessage, signatureHex), "Verification must fail when using a different public key.");
+        Assertions.assertFalse(KeyPairUtility.verifySignature(wrongKeyPair.getPublic(), unsignedMessage, HashUtility.hexToBytes(signatureHex)), "Verification must fail when using a different public key.");
     }
 
     @Test
@@ -105,21 +105,21 @@ public class KeyPairUtilityTest {
         // Given
         String badHexSignature = "ABC123XYZ";
 
-        String unsignedMessage = "data";
+        byte[] unsignedMessage = new byte[]{};
 
         // When & Then
-        Assertions.assertThrows(IllegalArgumentException.class, () -> KeyPairUtility.verifySignature(VALID_KEY_PAIR.getPublic(), unsignedMessage, badHexSignature), "Exception should be thrown in the event of malformed hex signature.");
+        Assertions.assertThrows(IllegalArgumentException.class, () -> KeyPairUtility.verifySignature(VALID_KEY_PAIR.getPublic(), unsignedMessage, HashUtility.hexToBytes(badHexSignature)), "Exception should be thrown in the event of malformed hex signature.");
     }
 
     @Test
     void selfSign_generatesValidCertificate() throws Exception {
         // When
-        X509Certificate certificate = KeyPairUtility.selfSign(VALID_KEY_PAIR, WalletTestData.ADDRESS_ALPHA.value());
+        X509Certificate certificate = KeyPairUtility.selfSign(VALID_KEY_PAIR, "COPO_abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789");
 
         // Then
         Assertions.assertNotNull(certificate, "Certificate should be generated.");
 
-        Assertions.assertTrue(certificate.getSubjectX500Principal().getName().contains(WalletTestData.ADDRESS_ALPHA.value()), "Subject must contain the alias.");
+        Assertions.assertTrue(certificate.getSubjectX500Principal().getName().contains("COPO_abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"), "Subject must contain the alias.");
         Assertions.assertEquals(certificate.getIssuerX500Principal(), certificate.getSubjectX500Principal(), "Certificate must be self-signed (Issuer == Subject).");
 
         Assertions.assertDoesNotThrow(() -> certificate.checkValidity(new Date()), "Certificate should be valid at the current time.");

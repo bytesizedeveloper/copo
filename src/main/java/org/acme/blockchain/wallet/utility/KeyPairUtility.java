@@ -2,7 +2,6 @@ package org.acme.blockchain.wallet.utility;
 
 import lombok.extern.slf4j.Slf4j;
 import org.acme.blockchain.common.exception.CryptographicException;
-import org.acme.blockchain.common.utility.HashUtility;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
 import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder;
@@ -13,7 +12,6 @@ import org.bouncycastle.operator.OperatorCreationException;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 
 import java.math.BigInteger;
-import java.nio.charset.StandardCharsets;
 import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
@@ -30,7 +28,7 @@ import java.util.Calendar;
 import java.util.Date;
 
 /**
- * A specialized utility class for generating, signing, and verifying cryptographic
+ * A specialised utility class for generating, signing, and verifying cryptographic
  * operations related to the **ML-DSA (Dilithium)** quantum-resistant algorithm.
  * <p>
  * This class ensures thread-safe access to core cryptographic functions by creating
@@ -67,34 +65,52 @@ public final class KeyPairUtility {
     }
 
     /**
-     * **Convenience Method:** Signs a message string using the provided private key and the ML-DSA algorithm.
+     * Signs a raw message byte array using the provided private key and the ML-DSA algorithm.
      * <p>
-     * The input string is converted to bytes using **{@code UTF-8} encoding** before the signing operation is performed.
+     * **Thread Safety:** A new {@link Signature} object is instantiated for every call to ensure the operation is thread-safe and isolated.
      *
-     * @param privateKey The {@link PrivateKey} used to generate the digital signature.
-     * @param unsignedMessage The message {@code String} to sign.
+     * @param privateKey The {@link PrivateKey} to sign the message with.
+     * @param unsignedMessage The raw message bytes to sign.
      * @return The digital signature as a raw byte array.
-     * @throws CryptographicException if the signing process fails due to an invalid key, unsupported algorithm, or a crypto error.
+     * @throws CryptographicException if the signing process fails due to an invalid key, unsupported algorithm, or a cryptographic error.
      */
-    public static byte[] sign(PrivateKey privateKey, String unsignedMessage) {
-        return sign(privateKey, unsignedMessage.getBytes(StandardCharsets.UTF_8));
+    public static byte[] sign(PrivateKey privateKey, byte[] unsignedMessage) {
+        try {
+            Signature mlDsa = Signature.getInstance(KEY_PAIR_ALGORITHM, BC_PROVIDER);
+
+            mlDsa.initSign(privateKey, new SecureRandom());
+            mlDsa.update(unsignedMessage);
+
+            return mlDsa.sign();
+        } catch (Exception e) {
+            log.error("Failed to sign data due to: {}", e.getMessage(), e);
+            throw new CryptographicException("Failed to sign data.", e);
+        }
     }
 
     /**
-     * **Convenience Method:** Verifies a digital signature given a public key, the original message string, and the signature
-     * in its **Hex-encoded string format**.
+     * Verifies a digital signature against the original message using the public key and the ML-DSA algorithm.
      * <p>
-     * This method handles the decoding of the signature Hex string back to bytes and converts the message string
-     * to {@code UTF-8} bytes before calling the core verification method.
+     * **Thread Safety:** A new {@link Signature} object is instantiated for every call.
      *
-     * @param publicKey       The {@link PublicKey} used for signature verification.
-     * @param originalMessage The original message {@code String} that was signed.
-     * @param signature       The digital signature as a hexadecimal {@code String}.
+     * @param publicKey The {@link PublicKey} to verify the signature against.
+     * @param originalMessage The original message bytes that were signed.
+     * @param signature The digital signature bytes to verify.
      * @return {@code true} if the signature is valid for the message; {@code false} otherwise.
-     * @throws CryptographicException if the verification setup fails (e.g., invalid key) or if the signature Hex string cannot be decoded (via {@code HashUtility.hexToBytes}).
+     * @throws CryptographicException if the verification setup fails (e.g., due to an invalid public key or crypto error).
      */
-    public static boolean verifySignature(PublicKey publicKey, String originalMessage, String signature) {
-        return verifySignature(publicKey, originalMessage.getBytes(StandardCharsets.UTF_8), HashUtility.hexToBytes(signature));
+    public static boolean verifySignature(PublicKey publicKey, byte[] originalMessage, byte[] signature) {
+        try {
+            Signature mlDsa = Signature.getInstance(KEY_PAIR_ALGORITHM, BC_PROVIDER);
+
+            mlDsa.initVerify(publicKey);
+            mlDsa.update(originalMessage);
+
+            return mlDsa.verify(signature);
+        } catch (Exception e) {
+            log.error("Failed to verify signature due to: {}", e.getMessage(), e);
+            throw new CryptographicException("Failed to verify signature.", e);
+        }
     }
 
     /**
@@ -117,55 +133,6 @@ public final class KeyPairUtility {
             return keyFactory.generatePublic(keySpec);
         } catch (Exception e) {
             throw new CryptographicException("Failed to load public key.", e);
-        }
-    }
-
-    /**
-     * **Core Method:** Signs a raw message byte array using the provided private key and the ML-DSA algorithm.
-     * <p>
-     * **Thread Safety:** A new {@link Signature} object is instantiated for every call to ensure the operation is thread-safe and isolated.
-     *
-     * @param privateKey The {@link PrivateKey} to sign the message with.
-     * @param unsignedMessage The raw message bytes to sign.
-     * @return The digital signature as a raw byte array.
-     * @throws CryptographicException if the signing process fails due to an invalid key, unsupported algorithm, or a cryptographic error.
-     */
-    private static byte[] sign(PrivateKey privateKey, byte[] unsignedMessage) {
-        try {
-            Signature mlDsa = Signature.getInstance(KEY_PAIR_ALGORITHM, BC_PROVIDER);
-
-            mlDsa.initSign(privateKey, new SecureRandom());
-            mlDsa.update(unsignedMessage);
-
-            return mlDsa.sign();
-        } catch (Exception e) {
-            log.error("Failed to sign data due to: {}", e.getMessage(), e);
-            throw new CryptographicException("Failed to sign data.", e);
-        }
-    }
-
-    /**
-     * **Core Method:** Verifies a digital signature against the original message using the public key and the ML-DSA algorithm.
-     * <p>
-     * **Thread Safety:** A new {@link Signature} object is instantiated for every call.
-     *
-     * @param publicKey The {@link PublicKey} to verify the signature against.
-     * @param originalMessage The original message bytes that were signed.
-     * @param signature The digital signature bytes to verify.
-     * @return {@code true} if the signature is valid for the message; {@code false} otherwise.
-     * @throws CryptographicException if the verification setup fails (e.g., due to an invalid public key or crypto error).
-     */
-    private static boolean verifySignature(PublicKey publicKey, byte[] originalMessage, byte[] signature) {
-        try {
-            Signature mlDsa = Signature.getInstance(KEY_PAIR_ALGORITHM, BC_PROVIDER);
-
-            mlDsa.initVerify(publicKey);
-            mlDsa.update(originalMessage);
-
-            return mlDsa.verify(signature);
-        } catch (Exception e) {
-            log.error("Failed to verify signature due to: {}", e.getMessage(), e);
-            throw new CryptographicException("Failed to verify signature.", e);
         }
     }
 

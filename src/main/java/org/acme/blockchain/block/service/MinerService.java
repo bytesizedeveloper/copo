@@ -1,23 +1,26 @@
 package org.acme.blockchain.block.service;
 
-import org.acme.blockchain.block.model.BlockModel;
-import org.acme.blockchain.common.model.AddressModel;
-import org.acme.blockchain.common.service.DifficultyService;
-import org.acme.blockchain.common.service.RewardService;
-import org.acme.blockchain.common.service.TransactionCacheService;
-import org.acme.blockchain.common.utility.HashUtility;
-import org.acme.blockchain.common.utility.TimestampUtility;
-import org.acme.blockchain.network.TempNetwork;
-import org.acme.blockchain.common.model.CoinModel;
-import org.acme.blockchain.transaction.model.TransactionModel;
-import org.acme.blockchain.transaction.service.TransactionService;
 import io.quarkus.scheduler.Scheduled;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
+import org.acme.blockchain.block.model.BlockHash;
+import org.acme.blockchain.block.model.BlockModel;
+import org.acme.blockchain.common.model.Address;
+import org.acme.blockchain.common.model.Coin;
+import org.acme.blockchain.common.service.DifficultyService;
+import org.acme.blockchain.common.service.RewardService;
+import org.acme.blockchain.common.service.TransferCacheService;
+import org.acme.blockchain.common.utility.HashUtility;
+import org.acme.blockchain.common.utility.TimestampUtility;
+import org.acme.blockchain.network.TempNetwork;
+import org.acme.blockchain.transaction.model.RewardModel;
+import org.acme.blockchain.transaction.model.TransactionModel;
+import org.acme.blockchain.transaction.model.enumeration.TransactionStatus;
+import org.acme.blockchain.transaction.service.TransactionService;
 
 import java.time.OffsetDateTime;
-import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 
@@ -33,14 +36,14 @@ import java.util.Set;
  * **mining threads to stop immediately upon a successful solve, preventing wasted work.**
  * <p>
  * It relies heavily on injected services for data fetching ({@link MinerCacheService}
- * and {@link TransactionCacheService}).
+ * and {@link TransferCacheService}).
  */
 @Slf4j
 @ApplicationScoped
 public class MinerService {
 
     private final MinerCacheService minerCache;
-    private final TransactionCacheService transactionCache;
+    private final TransferCacheService transactionCache;
     private final DifficultyService difficultyService;
     private final RewardService rewardService;
     private final BlockService blockService;
@@ -63,7 +66,7 @@ public class MinerService {
     @Inject
     public MinerService(
             MinerCacheService minerCache,
-            TransactionCacheService transactionCache,
+            TransferCacheService transactionCache,
             DifficultyService difficultyService,
             RewardService rewardService,
             BlockService blockService,
@@ -87,7 +90,7 @@ public class MinerService {
      * was already mining.
      * @throws IllegalStateException if the provided wallet address is invalid.
      */
-    public boolean startMining(AddressModel address) {
+    public boolean startMining(Address address) {
         if (minerCache.contains(address)) {
             return false;
         }
@@ -104,7 +107,7 @@ public class MinerService {
      * was not found in the active miner list.
      * @throws IllegalStateException if the provided wallet address is invalid.
      */
-    public boolean stopMining(AddressModel address) {
+    public boolean stopMining(Address address) {
         if (minerCache.contains(address)) {
             minerCache.remove(address);
             log.info("Miner stopped for address: {}", address);
@@ -122,7 +125,7 @@ public class MinerService {
      */
     @Scheduled(every = "10s")
     public void pulse() {
-        Set<AddressModel> activeMiners = minerCache.getIsMining();
+        Set<Address> activeMiners = minerCache.getIsMining();
 
         if (activeMiners.isEmpty()) {
             log.info("No active miners. Sleeping for 10 seconds...");
@@ -131,16 +134,16 @@ public class MinerService {
             List<TransactionModel> transactionsToMine = transactionCache.getReadyToMine();
 
             log.debug("Prepared block template. Difficulty: {}, Reward: {}, Transactions: {}",
-                    toMine.getDifficulty(), toMine.getReward(), transactionsToMine.size());
+                    toMine.getDifficulty(), toMine.getRewardAmount(), transactionsToMine.size());
 
             log.info("Starting mining pulse with {} active miners on block height {}.",
                     activeMiners.size(), toMine.getHeight());
 
             minerCache.setIsPulseMined(false);
 
-            for (AddressModel address : activeMiners) {
+            for (Address address : activeMiners) {
                 Thread.ofVirtual().start(() -> mine(address, toMine.toBuilder()
-                        .transactions(new ArrayList<>(transactionsToMine)).build()));
+                        .transactions(new LinkedList<>(transactionsToMine)).build()));
             }
         }
     }
@@ -158,14 +161,19 @@ public class MinerService {
      * @param address The wallet address of the miner attempting to find the nonce.
      * @param toMine The block template containing transactions, previous hash, and difficulty.
      */
-    private void mine(AddressModel address, BlockModel toMine) {
+    private void mine(Address address, BlockModel toMine) {
         log.debug("{} Starting mining process.", address);
 
         minerCache.remove(address);
 
         try {
-            TransactionModel reward = transactionService.createReward(address, toMine.getReward());
-            toMine.addTransaction(reward);
+            RewardModel reward = RewardModel.builder()
+                    .recipientAddress(address)
+                    .amount(toMine.getRewardAmount())
+                    .status(TransactionStatus.INITIALISED)
+                    .build();
+
+            toMine.addReward(reward);
 
             BlockModel mined = mineBlockWithProofOfWork(toMine);
 
@@ -216,7 +224,7 @@ public class MinerService {
             OffsetDateTime minedAt = TimestampUtility.getOffsetDateTimeNow();
 
             block.setNonce(nonce);
-            block.setHashId(hashId);
+            block.setHashId(new BlockHash(hashId));
             block.setMinedAt(minedAt);
 
             return block;
@@ -236,23 +244,23 @@ public class MinerService {
     private BlockModel getToMine() {
         BlockModel latest = blockService.getLatestBlock();
         int difficulty = difficultyService.calculateDifficulty();
-        CoinModel reward = rewardService.determineRewardAmount();
+        Coin reward = rewardService.determineRewardAmount();
 
         return initialise(latest, difficulty, reward);
     }
 
     /**
-     * Initializes a new {@link BlockModel} instance based on the current blockchain state and parameters.
+     * Initialises a new {@link BlockModel} instance based on the current blockchain state and parameters.
      *
      * @param latest The last confirmed block in the chain.
      * @param difficulty The calculated mining difficulty for the new block.
      * @param reward The determined coin reward for the miner.
-     * @return A fully initialized, but unsolved, {@link BlockModel} ready for PoW.
+     * @return A fully initialised, but unsolved, {@link BlockModel} ready for PoW.
      */
     private BlockModel initialise(
             BlockModel latest,
             int difficulty,
-            CoinModel reward
+            Coin reward
     ) {
         OffsetDateTime now = TimestampUtility.getOffsetDateTimeNow();
         long currentHeight = latest.getHeight() + 1;
@@ -261,7 +269,7 @@ public class MinerService {
                 .previousHashId(latest.getHashId())
                 .height(currentHeight)
                 .difficulty(difficulty)
-                .reward(reward)
+                .rewardAmount(reward)
                 .createdAt(now)
                 .build();
     }

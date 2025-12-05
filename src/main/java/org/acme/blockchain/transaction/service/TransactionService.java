@@ -1,300 +1,230 @@
 package org.acme.blockchain.transaction.service;
 
-import org.acme.blockchain.common.exception.CryptographicException;
-import org.acme.blockchain.common.exception.InsufficientBalanceException;
-import org.acme.blockchain.common.model.AddressModel;
-import org.acme.blockchain.common.service.FeeService;
-import org.acme.blockchain.common.utility.TimestampUtility;
-import org.acme.blockchain.common.model.CoinModel;
-import org.acme.blockchain.transaction.model.TransactionModel;
-import org.acme.blockchain.transaction.model.UtxoModel;
-import org.acme.blockchain.transaction.model.enumeration.OutputIndex;
-import org.acme.blockchain.transaction.model.enumeration.TransactionStatus;
-import org.acme.blockchain.transaction.model.enumeration.TransactionType;
-import org.acme.blockchain.transaction.repository.UtxoRepository;
-import org.acme.blockchain.wallet.service.WalletService;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.ws.rs.NotFoundException;
 import lombok.extern.slf4j.Slf4j;
+import org.acme.blockchain.common.model.Coin;
+import org.acme.blockchain.common.service.FeeService;
+import org.acme.blockchain.common.service.TransferCacheService;
+import org.acme.blockchain.common.utility.TimestampUtility;
+import org.acme.blockchain.transaction.model.TransactionHash;
+import org.acme.blockchain.transaction.model.TransactionModel;
+import org.acme.blockchain.transaction.model.TransactionSignature;
+import org.acme.blockchain.transaction.model.TransferModel;
+import org.acme.blockchain.transaction.model.UtxoId;
+import org.acme.blockchain.transaction.model.UtxoModel;
+import org.acme.blockchain.transaction.model.enumeration.TransactionStatus;
+import org.acme.blockchain.transaction.repository.TransactionRepository;
+import org.acme.blockchain.transaction.repository.UtxoRepository;
+import org.acme.blockchain.wallet.service.WalletService;
 import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.eclipse.microprofile.reactive.messaging.Emitter;
+import org.jooq.exception.NoDataFoundException;
 
 import java.math.BigDecimal;
-import java.security.KeyStoreException;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
- * A service responsible for generating, validating, and finalizing all types of transactions
- * (transfers and block rewards) within the cryptocurrency system.
+ * Service layer component responsible for managing the lifecycle of {@link TransferModel} transactions.
  * <p>
- * This service implements the core UTXO (Unspent Transaction Output) accounting logic, including
- * fee calculation, input selection, output generation, and cryptographic signing.
+ * This includes validation, preparing transaction data (inputs/outputs, fees, public keys),
+ * calculating the transaction hash, signing, and initiating the asynchronous process of
+ * broadcasting the transaction to the network via the reactive messaging channel.
  */
 @Slf4j
 @ApplicationScoped
 public class TransactionService {
 
+    private final TransferCacheService cache;
+
     private final WalletService walletService;
 
     private final FeeService feeService;
 
+    private final TransactionRepository transactionRepository;
+
     private final UtxoRepository utxoRepository;
 
-    private final Emitter<TransactionModel> transactionEmitter;
+    private final Emitter<TransferModel> transferEmitter;
 
-    /**
-     * Constructs the TransactionService, injecting necessary dependencies using constructor injection
-     * for dependency finality.
-     *
-     * @param walletService The service responsible for cryptographic signing of transactions.
-     * @param utxoRepository The repository for managing the state of Unspent Transaction Outputs (UTXOs).
-     */
     @Inject
     public TransactionService(
+            TransferCacheService cache,
             WalletService walletService,
             FeeService feeService,
+            TransactionRepository transactionRepository,
             UtxoRepository utxoRepository,
-            @Channel("transaction-process") Emitter<TransactionModel> transactionEmitter
+            @Channel("transfer-process") Emitter<TransferModel> transferEmitter
     ) {
+        this.cache = cache;
         this.walletService = walletService;
         this.feeService = feeService;
+        this.transactionRepository = transactionRepository;
         this.utxoRepository = utxoRepository;
-        this.transactionEmitter = transactionEmitter;
+        this.transferEmitter = transferEmitter;
     }
 
     /**
-     * Creates a standard fund transfer transaction between two parties.
+     * Initiates a new fund transfer transaction.
      * <p>
-     * This method automatically sets the transaction type to {@code TRANSFER} and delegates
-     * to the core creation logic.
+     * This method orchestrates the transaction creation process: data preparation (pre-hash),
+     * cryptographic hashing, finalization (post-hash/signing), and broadcasting the transaction
+     * to the network for asynchronous verification and inclusion in a block.
      *
-     * @param transfer The partially built {@link TransactionModel} containing sender, recipient, and amount.
-     * @return The fully initialized, signed, and updated {@link TransactionModel}.
+     * @param transfer The initial {@link TransferModel} containing sender, recipient, and amount.
+     * @return The finalised {@link TransferModel} object, including its unique hash ID and signature.
+     * @throws IllegalStateException If the sender has insufficient UTXOs (funds) to cover the
+     * amount and the transaction fee.
      */
-    public TransactionModel createTransfer(TransactionModel transfer) {
-        transfer.setType(TransactionType.TRANSFER);
+    public TransferModel create(TransferModel transfer) {
+        preHash(transfer);
 
-        return create(transfer);
+        transfer.calculateHashId();
+        log.debug("{} Hash ID calculated: {}", transfer, transfer.getHashId());
+
+        postHash(transfer);
+
+        transferEmitter.send(transfer);
+
+        return transfer;
     }
 
     /**
-     * Creates a block reward transaction, generated by the mining process.
-     * <p>
-     * Reward transactions have no inputs and zero fees; they simply generate new currency.
+     * Retrieves a transaction record from the repository using its unique hash ID.
      *
-     * @param address The recipient's (miner's) wallet address.
-     * @param amount The amount of the reward.
-     * @return The fully initialized, signed, and updated {@link TransactionModel}.
+     * @param hashId The unique {@link TransactionHash} identifier of the transaction.
+     * @return The retrieved {@link TransferModel} if it exists.
+     * @throws NotFoundException If the transaction corresponding to the hash ID is not found in the database.
      */
-    public TransactionModel createReward(AddressModel address, CoinModel amount) {
-        TransactionModel reward = TransactionModel.builder()
-                .senderAddress(address)
-                .recipientAddress(address)
-                .amount(amount)
-                .type(TransactionType.REWARD)
-                .build();
+    public TransactionModel get(TransactionHash hashId) {
+        if (cache.containsTransfer(hashId)) {
+            return cache.get(hashId);
 
-        return create(reward);
-    }
+        } else {
+            TransactionModel transaction = getTransaction(hashId);
 
-    /**
-     * Core method for processing and finalizing a transaction model.
-     * <p>
-     * This method handles fee calculation, input determination (for transfers), output generation,
-     * transaction initialization, signing, and updates the transaction and UTXO repository state.
-     *
-     * @param transaction The partially initialized transaction model.
-     * @return The fully signed {@link TransactionModel}.
-     * @throws CryptographicException For errors during signing (e.g., failed key access).
-     * @throws InsufficientBalanceException If the sender has insufficient balance.
-     * @throws IllegalStateException For critical infrastructure failures like {@link KeyStoreException}.
-     */
-    private TransactionModel create(TransactionModel transaction) {
-        OffsetDateTime now = TimestampUtility.getOffsetDateTimeNow();
+            List<UtxoModel> outputs = getOutputs(hashId);
 
-        byte[] senderPublicKeyEncoded = walletService.getPublicKeyEncoded(transaction.getSenderAddress());
-        transaction.setSenderPublicKeyEncoded(senderPublicKeyEncoded);
-
-        CoinModel fee = new CoinModel(BigDecimal.ZERO);
-        List<UtxoModel> inputs = new ArrayList<>();
-        List<UtxoModel> outputs;
-
-        try {
-            if (transaction.isReward()) {
-                transaction.setFee(fee);
-                transaction.setInputs(inputs);
-                outputs = generateOutputForReward(transaction, now);
-
-            } else {
-                fee = feeService.calculateFee();
-                transaction.setFee(fee);
-                log.debug("{} Transaction fee calculated: {}", transaction, fee);
-
-                inputs = determineInputs(transaction);
-                transaction.setInputs(inputs);
-
-                outputs = generateOutputsForTransfer(transaction, now);
+            List<UtxoModel> inputs = List.of();
+            if (transaction.isTransfer()) {
+                inputs = getInputs(transaction);
             }
 
+            transaction.setInputs(inputs);
             transaction.setOutputs(outputs);
 
-            TransactionModel initialised = initialise(transaction, now);
-
-            log.debug("{} Transaction inputs determined: {}", transaction, inputs);
-            log.debug("{} Transaction outputs generated: {}", transaction, outputs);
-
-            String signature = walletService.sign(initialised.getSenderAddress(), initialised.getHashId());
-            initialised.setSignature(signature);
-            log.debug("{} Transaction signed.", initialised);
-
-            if (!initialised.isReward()) {
-                transactionEmitter.send(initialised);
-            }
-
-            log.debug("{} Transaction of type {} successfully created.", initialised, initialised.getType());
-            return initialised;
-        } catch (InsufficientBalanceException e) {
-            log.error("{} Transaction failed - sender has insufficient balance: {}\n{}", transaction, transaction.getSenderAddress(), e.getMessage());
-            throw e;
-
-//        } catch (KeyStoreException e) {
-//            log.error("{} Transaction failed - keystore failure: {}", transaction, e.getMessage());
-//            throw new IllegalStateException("Keystore failure - cannot access private key for signing.", e);
-
-        } catch (CryptographicException e) {
-            log.error("{} Transaction failed - cryptography exception: {}", transaction, e.getMessage());
-            throw e;
+            return transaction;
         }
     }
 
     /**
-     * Determines and selects the necessary {@link UtxoModel}s (inputs) for a transfer transaction.
+     * Prepares all required data fields *before* the transaction's hash is calculated.
      * <p>
-     * Inputs are selected until the cumulative available amount meets or exceeds the total
-     * required amount (transaction amount + fee). This prioritises older inputs.
+     * This data, which includes the timestamp, sender public key, fees, and determined UTXO inputs,
+     * must be included in the transaction hash to ensure its immutability.
      *
-     * @param transaction The transaction containing the sender address and required amount.
-     * @return A list of selected {@link UtxoModel}s to be consumed as inputs.
-     * @throws InsufficientBalanceException If the sender does not have enough unspent funds.
+     * @param transfer The {@link TransferModel} to be populated.
      */
-    private List<UtxoModel> determineInputs(TransactionModel transaction) throws InsufficientBalanceException {
-        // Retrieve all available unspent UTXOs for the sender
+    private void preHash(TransferModel transfer) {
+        OffsetDateTime now = TimestampUtility.getOffsetDateTimeNow();
+        transfer.setCreatedAt(now);
+
+        byte[] senderPublicKeyEncoded = walletService.getPublicKeyEncoded(transfer.getSenderAddress());
+        transfer.setSenderPublicKeyEncoded(senderPublicKeyEncoded);
+
+        Coin fee = feeService.calculateFee();
+        transfer.setFee(fee);
+        log.debug("{} Fee calculated: {}", transfer, transfer.getFee());
+
+        List<UtxoModel> inputs = determineInputs(transfer);
+        transfer.setInputs(inputs);
+        log.debug("{} Inputs determined: {}", transfer, transfer.getInputs());
+    }
+
+    /**
+     * Finalises the transaction data *after* the transaction's hash ID has been calculated.
+     * <p>
+     * This step typically involves elements that depend on the final transaction ID, such as
+     * the digital signature, which signs the hash ID.
+     *
+     * @param transfer The {@link TransferModel} with a calculated hash ID to be finalised.
+     */
+    private void postHash(TransferModel transfer) {
+        TransactionSignature signature = walletService.sign(transfer.getSenderAddress(), transfer.getHashId().value());
+        transfer.setSignature(signature);
+        log.debug("{} Signed: {}", transfer, transfer.getSignature());
+
+        transfer.generateOutputs();
+        log.debug("{} Outputs generated: {}", transfer, transfer.getOutputs());
+
+        transfer.setStatus(TransactionStatus.INITIALISED);
+    }
+
+    /**
+     * Determines the set of unspent transaction outputs (UTXOs) required to fund the transaction.
+     * <p>
+     * This method selects UTXOs from the sender's available balance that meet or exceed the
+     * total required amount (transfer amount + fee). This process enforces the UTXO model.
+     *
+     * @param transaction The transaction for which inputs are being determined.
+     * @return A {@link List} of {@link UtxoModel} selected as inputs for this transaction.
+     * @throws IllegalStateException If the total available UTXO balance is less than the required amount.
+     */
+    private List<UtxoModel> determineInputs(TransferModel transaction) {
         List<UtxoModel> unspentUtxos = utxoRepository.retrieveUnspentUtxosByRecipientAddress(transaction.getSenderAddress().value());
 
-        CoinModel totalRequired = transaction.getTotalRequired();
+        Coin totalRequired = transaction.getTotalRequired();
 
-        CoinModel available = new CoinModel(BigDecimal.ZERO);
+        Coin available = new Coin(BigDecimal.ZERO);
         List<UtxoModel> requiredForInput = new ArrayList<>();
 
-        // Loop to accumulate inputs until available balance exceeds required
         for (UtxoModel unspentUtxo : unspentUtxos) {
             if (available.isGreaterThanOrEqualTo(totalRequired)) {
                 break;
             }
 
-            requiredForInput.add(unspentUtxo);
-            available = available.add(unspentUtxo.getAmount());
+            if (!cache.containsInput(unspentUtxo.getId())) {
+                requiredForInput.add(unspentUtxo);
+                available = available.add(unspentUtxo.getAmount());
+            }
         }
 
-        // Final check after accumulating inputs
         if (available.isLessThan(totalRequired)) {
-            String errorMessage = "Sender has insufficient balance. Required: " + totalRequired
+            throw new IllegalStateException("Sender has insufficient balance. Required: " + totalRequired
                     + " (Amount: " + transaction.getAmount()
                     + " + Fee: " + transaction.getFee()
-                    + ") Available: " + available;
-            log.error("{} {}", transaction, errorMessage);
-            throw new InsufficientBalanceException(errorMessage);
+                    + ") Available: " + available);
         }
 
         return requiredForInput;
     }
 
-    /**
-     * Generates the transaction outputs for a standard transfer.
-     * <p>
-     * Always generates one output for the recipient. If there is a leftover amount after
-     * subtracting the total required (amount + fee) from the inputs, a second output
-     * (change) is generated and sent back to the sender's address.
-     *
-     * @param transfer The finalized transaction model.
-     * @param now The current timestamp for output creation.
-     * @return A list of new {@link UtxoModel}s (outputs).
-     */
-    private List<UtxoModel> generateOutputsForTransfer(TransactionModel transfer, OffsetDateTime now) {
-        CoinModel availableFunds = transfer.getTotalValueOfInputs();
-
-        CoinModel totalRequired = transfer.getTotalRequired();
-        CoinModel change = availableFunds.subtract(totalRequired);
-
-        List<UtxoModel> outputs = new ArrayList<>();
-
-        // Output for the recipient (index 00)
-        UtxoModel utxoForRecipient = UtxoModel.builder()
-                .outputIndex(OutputIndex.RECIPIENT.getIndex())
-                .recipientAddress(transfer.getRecipientAddress())
-                .amount(transfer.getAmount())
-                .createdAt(now)
-                .isSpent(false)
-                .build();
-        outputs.add(utxoForRecipient);
-
-        // Output for the change back to the sender (index 01, only if positive)
-        if (change.isPositive()) {
-            UtxoModel changeForSender = UtxoModel.builder()
-                    .outputIndex(OutputIndex.SENDER.getIndex())
-                    .recipientAddress(transfer.getSenderAddress())
-                    .amount(change)
-                    .createdAt(now)
-                    .isSpent(false)
-                    .build();
-            outputs.add(changeForSender);
+    private TransactionModel getTransaction(TransactionHash hashId) {
+        try {
+            return transactionRepository.retrieveTransactionByHashId(hashId.value());
+        } catch (NoDataFoundException e) {
+            throw new NotFoundException("Transaction does not exist in the cache or database: " + hashId);
         }
-
-        return outputs;
     }
 
-    /**
-     * Generates the single output for a block reward transaction.
-     *
-     * @param reward The reward transaction model.
-     * @param now The current timestamp for output creation.
-     * @return A list containing the single reward {@link UtxoModel}.
-     */
-    private List<UtxoModel> generateOutputForReward(TransactionModel reward, OffsetDateTime now) {
-        UtxoModel output = UtxoModel.builder()
-                .outputIndex(OutputIndex.RECIPIENT.getIndex())
-                .recipientAddress(reward.getRecipientAddress())
-                .amount(reward.getAmount())
-                .createdAt(now)
-                .isSpent(false)
-                .build();
-
-        return List.of(output);
+    private List<UtxoModel> getInputs(TransactionModel transaction) {
+        try {
+            List<UtxoId> ids = Arrays.stream(transaction.getInputIds()).map(UtxoId::new).toList();
+            return utxoRepository.retrieveUtxosById(ids);
+        } catch (NoDataFoundException e) {
+            throw new NotFoundException("Transaction inputs do not exist in the cache or database: " + transaction.getHashId());
+        }
     }
 
-    /**
-     * Finalizes the transaction by setting the creation timestamp, calculating the transaction hash ID,
-     * and assigning the transaction hash ID to all generated outputs.
-     * <p>
-     * This prepares the transaction for the signing process.
-     *
-     * @param transaction The transaction model to initialize.
-     * @param now The creation timestamp.
-     * @return The initialized {@link TransactionModel} ready for signing.
-     */
-    private TransactionModel initialise(TransactionModel transaction, OffsetDateTime now) {
-        TransactionModel initialised = transaction.toBuilder()
-                .createdAt(now)
-                .build();
-
-        initialised.calculateHashId();
-
-        initialised.getOutputs().forEach(output -> output.setTransactionHashId(initialised.getHashId()));
-
-        initialised.setStatus(TransactionStatus.INITIALISED);
-
-        return initialised;
+    private List<UtxoModel> getOutputs(TransactionHash hashId) {
+        try {
+            return utxoRepository.retrieveUtxoByTransactionHashId(hashId.value());
+        } catch (NoDataFoundException e) {
+            throw new NotFoundException("Transaction outputs do not exist in the cache or database: " + hashId);
+        }
     }
 }

@@ -3,7 +3,7 @@ package org.acme.blockchain.block.service;
 import io.vertx.core.impl.ConcurrentHashSet;
 import jakarta.enterprise.context.ApplicationScoped;
 import lombok.Getter;
-import org.acme.blockchain.common.model.AddressModel;
+import org.acme.blockchain.common.model.Address;
 
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -25,7 +25,7 @@ public class MinerCacheService {
      * should receive the next PoW task.
      */
     @Getter
-    private final Set<AddressModel> isMining = new ConcurrentHashSet<>();
+    private final Set<Address> isMining = new ConcurrentHashSet<>();
 
     /**
      * An atomic flag used to indicate whether the current mining block has already been
@@ -39,7 +39,7 @@ public class MinerCacheService {
      *
      * @param address The public wallet address to register for mining.
      */
-    public void add(AddressModel address) {
+    public void add(Address address) {
         this.isMining.add(address);
     }
 
@@ -48,7 +48,7 @@ public class MinerCacheService {
      *
      * @param address The public wallet address to remove (i.e., stop mining).
      */
-    public void remove(AddressModel address) {
+    public void remove(Address address) {
         this.isMining.remove(address);
     }
 
@@ -58,7 +58,7 @@ public class MinerCacheService {
      * @param address The public wallet address to check.
      * @return {@code true} if the address is currently mining, {@code false} otherwise.
      */
-    public boolean contains(AddressModel address) {
+    public boolean contains(Address address) {
         return this.isMining.contains(address);
     }
 

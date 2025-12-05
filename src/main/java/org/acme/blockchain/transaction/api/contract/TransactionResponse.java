@@ -1,155 +1,64 @@
 package org.acme.blockchain.transaction.api.contract;
 
-import org.acme.blockchain.common.model.CoinModel;
-import org.acme.blockchain.transaction.model.enumeration.TransactionType;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
-import lombok.EqualsAndHashCode;
+import org.acme.blockchain.transaction.model.enumeration.TransactionStatus;
+import org.acme.blockchain.transaction.model.enumeration.TransactionType;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
 
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.time.OffsetDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 
-/**
- * Data Transfer Object (DTO) representing the immutable details of a fully processed and signed transaction
- * returned to the client via the API.
- * <p>
- * This class provides a complete snapshot of the transaction as it is ready to be included in the blockchain.
- */
-@EqualsAndHashCode
 @Builder(toBuilder = true)
-@Schema(description = "Information of a finalized, signed transaction.")
-public class TransactionResponse {
+@Schema(description = "Information of a transaction.")
+public record TransactionResponse(
 
-    /**
-     * The unique cryptographic hash ID of the transaction.
-     */
-    @Schema(description = "Unique hash ID of the transaction.")
-    @JsonProperty("hash_id")
-    private final String hashId;
+        @JsonProperty("hash_id")
+        @Schema(description = "Unique hash ID of the transaction", examples = "abcdaf0123456789abcdef0123456789abcdef0123456789abcdef0123456789")
+        String hashId,
 
-    /**
-     * The wallet address that initiated the transaction (the spender).
-     */
-    @Schema(description = "Wallet address of the sender.")
-    @JsonProperty("sender_address")
-    private final String senderAddress;
+        @JsonProperty("sender_address")
+        @Schema(description = "Address of the sender's wallet", examples = "COPO_abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789")
+        String senderAddress,
 
-    /**
-     * The wallet address receiving the principal transaction amount.
-     */
-    @Schema(description = "Wallet address of the recipient.")
-    @JsonProperty("recipient_address")
-    private final String recipientAddress;
+        @JsonProperty("recipient_address")
+        @Schema(description = "Address of the recipient's wallet", examples = "COPO_0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
+        String recipientAddress,
 
-    @JsonProperty("sender_public_key")
-    private final byte[] senderPublicKeyEncoded;
+        @JsonProperty("sender_public_key")
+        @Schema(description = "Encoded public key of the sender's wallet", examples = "MIIKMjALBglghkgBZQMEAxMDggohAHLTzl2pjEba3IZjKCH/tUzb6U2i3T6P/WzuHNRMRYjR3grrd2oGNSU03x2Ns3dif0znEG9TswGUThOKEw9WbpDNHQnSyd5eUjWAxtI8mTvu/...[768 characters omitted]...w/fEmb8fVM002EYQ6eth7JJODbuMSrPCdK1BT/z6NGwMevEJA52q+vyeEQxhAGDZ27v1slacgKxTIVINuFJDXKl4WF99EQTMNy+9lm4FWDWcJtCbf9TpfacDwZCn/Pf/zJvzIA==")
+        String senderPublicKeyEncoded,
 
-    /**
-     * The principal monetary amount transferred. Excluded from default {@code equals}/{@code hashCode}
-     * to use the custom precision comparison.
-     */
-    @EqualsAndHashCode.Exclude
-    @Schema(description = "Quantity of COPO to transfer.")
-    @JsonProperty("amount")
-    private final BigDecimal amount;
+        @JsonProperty("amount")
+        @Schema(description = "Quantity of COPO to transfer from sender's to recipient's wallet", examples = "100")
+        BigDecimal amount,
 
-    /**
-     * The fee required to facilitate the transaction. Excluded from default {@code equals}/{@code hashCode}
-     * to use the custom precision comparison.
-     */
-    @EqualsAndHashCode.Exclude
-    @Schema(description = "Quantity of COPO required to facilitate the transfer.")
-    @JsonProperty("fee")
-    private final BigDecimal fee;
+        @JsonProperty("fee")
+        @Schema(description = "Quantity of COPO required to facilitate the transaction", examples = "100")
+        BigDecimal fee,
 
-    /**
-     * The type of transaction (e.g., TRANSFER, REWARD).
-     */
-    @Schema(description = "Type of transaction.")
-    @JsonProperty("type")
-    private final TransactionType type;
+        @JsonProperty("type")
+        @Schema(description = "Type of transaction")
+        TransactionType type,
 
-    /**
-     * The list of Unspent Transaction Outputs (UTXOs) that were consumed (spent) by this transaction.
-     */
-    @Schema(description = "Transaction inputs (spent UTXOs) required to facilitate the transfer.")
-    @JsonProperty("inputs")
-    private final List<UtxoResponse> inputs;
+        @JsonProperty("inputs")
+        @Schema(description = "Inputs (UTXOs) required to fund transaction")
+        List<UtxoResponse> inputs,
 
-    /**
-     * The list of new Unspent Transaction Outputs (UTXOs) created by this transaction (recipient amount and change).
-     */
-    @Schema(description = "Transaction outputs (new UTXOs) generated by the transfer.")
-    @JsonProperty("outputs")
-    private final List<UtxoResponse> outputs;
+        @JsonProperty("outputs")
+        @Schema(description = "Outputs (UTXOs) generated as result of transaction")
+        List<UtxoResponse> outputs,
 
-    /**
-     * The timestamp indicating when the transaction was created. Excluded from default {@code equals}/{@code hashCode}
-     * to use the custom truncated comparison.
-     */
-    @EqualsAndHashCode.Exclude
-    @Schema(description = "Timestamp at which the transaction was created.")
-    @JsonProperty("created_at")
-    private final OffsetDateTime createdAt;
+        @JsonProperty("created_at")
+        @Schema(description = "Timestamp at which the transaction was created")
+        OffsetDateTime createdAt,
 
-    /**
-     * The digital signature created by the sender's private key over the transaction hash ID.
-     */
-    @Schema(description = "Sender's transfer signature.")
-    @JsonProperty("signature")
-    private final String signature;
+        @JsonProperty("signature")
+        @Schema(description = "Signature of sender to guarantee authenticity, encoded in hexadecimal", examples = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789...[9126 characters omitted]...0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
+        String signature,
 
-    /**
-     * Provides a short, human-readable summary of the transaction for logging purposes.
-     *
-     * @return A formatted string showing the truncated hash, sender, recipient, and amount.
-     */
-    @Override
-    public String toString() {
-        String format = """
-                %s | %s -> %s : %s #""";
-        return format.formatted(
-                this.hashId.substring(0, 16),
-                this.senderAddress.substring(0, 21),
-                this.recipientAddress.substring(0, 21),
-                CoinModel.FORMAT.format(this.amount)
-        );
-    }
-
-    /**
-     * Custom comparison method for the {@code amount} field used by {@code equals} and {@code hashCode}.
-     * Ensures reliable {@code BigDecimal} comparison by stripping trailing zeros.
-     *
-     * @return The amount stripped of trailing zeros, or null.
-     */
-    @EqualsAndHashCode.Include
-    private BigDecimal getAmountForEquals() {
-        return this.amount != null ? this.amount.stripTrailingZeros() : null;
-    }
-
-    /**
-     * Custom comparison method for the {@code fee} field used by {@code equals} and {@code hashCode}.
-     * Ensures reliable {@code BigDecimal} comparison by stripping trailing zeros.
-     *
-     * @return The fee stripped of trailing zeros, or null.
-     */
-    @EqualsAndHashCode.Include
-    private BigDecimal getFeetForEquals() {
-        return this.fee != null ? this.fee.stripTrailingZeros() : null;
-    }
-
-    /**
-     * Custom comparison method for the {@code createdAt} field used by {@code equals} and {@code hashCode}.
-     * Truncates the timestamp to millisecond precision for reliable object comparison.
-     *
-     * @return The truncated Instant address, or null.
-     */
-    @EqualsAndHashCode.Include
-    private Instant getCreatedAtForEquals() {
-        return this.createdAt != null ? this.createdAt.truncatedTo(ChronoUnit.MILLIS).toInstant() : null;
-    }
-}
+        @JsonProperty("status")
+        @Schema(description = "Status of transaction")
+        TransactionStatus status
+) {}

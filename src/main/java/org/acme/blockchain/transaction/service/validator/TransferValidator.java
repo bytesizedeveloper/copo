@@ -1,9 +1,9 @@
 package org.acme.blockchain.transaction.service.validator;
 
-import org.acme.blockchain.transaction.model.TransactionModel;
 import org.acme.blockchain.transaction.model.TransactionValidationModel;
+import org.acme.blockchain.transaction.model.TransferModel;
 
 public interface TransferValidator {
 
-    void validate(TransactionModel transaction, TransactionValidationModel validationResult);
+    void validate(TransferModel transfer, TransactionValidationModel validationResult);
 }

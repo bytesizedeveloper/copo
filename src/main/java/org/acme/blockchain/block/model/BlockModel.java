@@ -1,17 +1,20 @@
 package org.acme.blockchain.block.model;
 
-import org.acme.blockchain.common.utility.MerkleTreeUtility;
-import org.acme.blockchain.common.model.CoinModel;
-import org.acme.blockchain.transaction.model.TransactionModel;
 import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import org.acme.blockchain.common.model.Coin;
+import org.acme.blockchain.common.utility.MerkleTreeUtility;
+import org.acme.blockchain.transaction.model.RewardModel;
+import org.acme.blockchain.transaction.model.TransactionModel;
+import org.acme.blockchain.transaction.model.TransferModel;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -21,11 +24,11 @@ public class BlockModel {
 
     private long id;
 
-    private String hashId;
+    private BlockHash hashId;
 
-    private String previousHashId;
+    private BlockHash previousHashId;
 
-    private List<TransactionModel> transactions;
+    private LinkedList<TransactionModel> transactions;
 
     private long height;
 
@@ -33,7 +36,7 @@ public class BlockModel {
 
     private int difficulty;
 
-    private CoinModel reward;
+    private Coin rewardAmount;
 
     @EqualsAndHashCode.Exclude
     private OffsetDateTime createdAt;
@@ -46,12 +49,20 @@ public class BlockModel {
                 getMerkleRoot() +
                 this.height +
                 this.difficulty +
-                this.reward.value() +
+                this.rewardAmount.value() +
                 this.createdAt;
     }
 
-    public void addTransaction(TransactionModel transaction) {
-        this.transactions.add(transaction);
+    public void addReward(RewardModel reward) {
+        this.transactions.addFirst(reward);
+    }
+
+    public RewardModel getReward() {
+        return (RewardModel) this.transactions.getFirst();
+    }
+
+    public List<TransferModel> getTransfers() {
+        return this.transactions.stream().skip(1).map(transfer -> (TransferModel) transfer).toList();
     }
 
     public long getTimeToMine() {
@@ -61,7 +72,7 @@ public class BlockModel {
 
     private String getMerkleRoot() {
         List<String> hashIds = this.transactions.stream()
-                .map(TransactionModel::getHashId).collect(Collectors.toCollection(ArrayList::new));
+                .map(transaction -> transaction.getHashId().value()).collect(Collectors.toCollection(ArrayList::new));
         if (hashIds.isEmpty()) {
             return null;
         }

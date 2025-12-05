@@ -1,21 +1,22 @@
 package org.acme.blockchain.common.model;
 
-import org.acme.blockchain.test_common.test_data.WalletTestData;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-public class AddressModelTest {
+public class AddressTest {
 
     @Test
     void testCanonicalConstructor_validAddress_createsRecord() {
         // Given
-        String validAddress = WalletTestData.ADDRESS_ALPHA.value();
+        String validAddress = "COPO_abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
+
+        Address expected = new Address(validAddress);
 
         // When
-        AddressModel address = new AddressModel(validAddress);
+        Address address = new Address(validAddress);
 
         // Then
-        Assertions.assertEquals(WalletTestData.ADDRESS_ALPHA, address);
+        Assertions.assertEquals(expected, address);
     }
 
     @Test
@@ -25,7 +26,7 @@ public class AddressModelTest {
 
         // Then
         Exception thrown = Assertions.assertThrows(
-                IllegalArgumentException.class, () -> new AddressModel(invalidAddress), "Exception should be thrown in the event of an invalid address being used."
+                IllegalArgumentException.class, () -> new Address(invalidAddress), "Exception should be thrown in the event of an invalid address being used."
         );
 
         Assertions.assertEquals("Invalid address: " + invalidAddress, thrown.getMessage());
@@ -38,7 +39,7 @@ public class AddressModelTest {
 
         // Then
         Exception thrown = Assertions.assertThrows(
-                IllegalArgumentException.class, () -> new AddressModel(invalidAddress), "Exception should be thrown in the event of an invalid address being used."
+                IllegalArgumentException.class, () -> new Address(invalidAddress), "Exception should be thrown in the event of an invalid address being used."
         );
 
         Assertions.assertEquals("Invalid address: " + invalidAddress, thrown.getMessage());
@@ -51,7 +52,7 @@ public class AddressModelTest {
 
         // Then
         Exception thrown = Assertions.assertThrows(
-                IllegalArgumentException.class, () -> new AddressModel(invalidAddress), "Exception should be thrown in the event of an invalid address being used."
+                IllegalArgumentException.class, () -> new Address(invalidAddress), "Exception should be thrown in the event of an invalid address being used."
         );
 
         Assertions.assertEquals("Invalid address: " + invalidAddress, thrown.getMessage());
@@ -64,7 +65,7 @@ public class AddressModelTest {
 
         // Then
         Exception thrown = Assertions.assertThrows(
-                IllegalArgumentException.class, () -> new AddressModel(invalidAddress), "Exception should be thrown in the event of an invalid address being used."
+                IllegalArgumentException.class, () -> new Address(invalidAddress), "Exception should be thrown in the event of an invalid address being used."
         );
 
         Assertions.assertEquals("Invalid address: " + invalidAddress, thrown.getMessage());
@@ -77,7 +78,7 @@ public class AddressModelTest {
 
         // Then
         Exception thrown = Assertions.assertThrows(
-                IllegalArgumentException.class, () -> new AddressModel(invalidAddress), "Exception should be thrown in the event of an invalid address being used."
+                IllegalArgumentException.class, () -> new Address(invalidAddress), "Exception should be thrown in the event of an invalid address being used."
         );
 
         Assertions.assertEquals("Invalid address: " + invalidAddress, thrown.getMessage());
@@ -90,7 +91,7 @@ public class AddressModelTest {
 
         // Then
         Exception thrown = Assertions.assertThrows(
-                IllegalArgumentException.class, () -> new AddressModel(invalidAddress), "Exception should be thrown in the event of an invalid address being used."
+                IllegalArgumentException.class, () -> new Address(invalidAddress), "Exception should be thrown in the event of an invalid address being used."
         );
 
         Assertions.assertEquals("Invalid address: " + invalidAddress, thrown.getMessage());
@@ -103,7 +104,7 @@ public class AddressModelTest {
 
         // Then
         Exception thrown = Assertions.assertThrows(
-                IllegalArgumentException.class, () -> new AddressModel(invalidAddress), "Exception should be thrown in the event of an invalid address being used."
+                IllegalArgumentException.class, () -> new Address(invalidAddress), "Exception should be thrown in the event of an invalid address being used."
         );
 
         Assertions.assertEquals("Invalid address: " + invalidAddress, thrown.getMessage());

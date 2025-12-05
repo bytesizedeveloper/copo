@@ -1,55 +1,53 @@
 package org.acme.blockchain.common.model;
 
 import java.math.BigDecimal;
-import java.text.DecimalFormat;
+import java.math.RoundingMode;
 
-public record CoinModel(BigDecimal value) {
+public record Coin(BigDecimal value) {
 
-    private static final BigDecimal MINIMUM = BigDecimal.valueOf(0.00000001);
+    public static final int SCALE = 8;
 
-    private static final BigDecimal MAXIMUM = BigDecimal.valueOf(999999999.99999999);
+    public static final BigDecimal MINIMUM = BigDecimal.valueOf(0.00000001);
 
-    public static final DecimalFormat FORMAT = new DecimalFormat("0.00000000");
+    public static final BigDecimal MAXIMUM = BigDecimal.valueOf(999999999.99999999);
 
-    public CoinModel {
+    public static final Coin ZERO = new Coin(BigDecimal.ZERO);
+
+    public Coin {
         if (!isValid(value)) {
-            throw new IllegalArgumentException("Invalid coin amount: " + value);
+            throw new IllegalArgumentException("Invalid COPO amount: " + value);
         }
+        value = value.setScale(SCALE, RoundingMode.DOWN);
     }
 
-    public CoinModel add(CoinModel other) {
+    public Coin add(Coin other) {
         BigDecimal value = this.value.add(other.value);
-        return new CoinModel(value);
+        return new Coin(value);
     }
 
-    public CoinModel subtract(CoinModel other) {
+    public Coin subtract(Coin other) {
         BigDecimal value = this.value.subtract(other.value);
-        return new CoinModel(value);
+        return new Coin(value);
     }
 
-    public boolean isEqualTo(CoinModel other) {
+    public boolean isEqualTo(Coin other) {
         return this.value.compareTo(other.value) == 0;
     }
 
-    public boolean isGreaterThanOrEqualTo(CoinModel other) {
+    public boolean isGreaterThanOrEqualTo(Coin other) {
         return this.value.compareTo(other.value) >= 0;
     }
 
-    public boolean isLessThan(CoinModel other) {
+    public boolean isLessThan(Coin other) {
         return this.value.compareTo(other.value) < 0;
     }
 
     public boolean isZero() {
-        return this.value.compareTo(BigDecimal.ZERO) == 0;
+        return this.equals(ZERO);
     }
 
     public boolean isPositive() {
         return this.value.compareTo(BigDecimal.ZERO) > 0;
-    }
-
-    @Override
-    public String toString() {
-        return FORMAT.format(this.value);
     }
 
     private boolean isValid(BigDecimal value) {

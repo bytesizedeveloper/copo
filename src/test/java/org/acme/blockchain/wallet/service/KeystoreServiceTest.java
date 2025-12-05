@@ -1,7 +1,8 @@
 package org.acme.blockchain.wallet.service;
 
 import org.acme.blockchain.common.exception.KeystoreException;
-import org.acme.blockchain.test_common.test_data.WalletTestData;
+import org.acme.blockchain.test_common.factory.AddressTestFactory;
+import org.acme.blockchain.wallet.utility.KeyPairUtility;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,7 +18,6 @@ import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.KeyPair;
-import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.util.function.Supplier;
 
@@ -33,10 +33,12 @@ public class KeystoreServiceTest {
     @TempDir
     Path tempDir;
 
+    private static KeyPair VALID_KEY_PAIR;
+
     private Path tempKeystorePath;
 
     @BeforeEach
-    void setUp() throws NoSuchAlgorithmException {
+    void setUp() {
         Mockito.when(passwordSupplier.get()).thenReturn("password123");
 
         tempKeystorePath = tempDir.resolve("test-keystore.p12");
@@ -48,53 +50,54 @@ public class KeystoreServiceTest {
         } catch (NoSuchFieldException | IllegalAccessException e) {
             throw new RuntimeException("Failed to set path field via reflection.", e);
         }
+
+        VALID_KEY_PAIR = KeyPairUtility.generateKeyPair();
+        Assertions.assertNotNull(VALID_KEY_PAIR, "Key pair must be generated.");
     }
 
     @Test
     void testWritePrivateKeyToKeystore_noFilePresent_createsFileAndWritesKey() {
         // Given
-        KeyPair keyPair = WalletTestData.KEYPAIR_ALPHA;
-        String alias = WalletTestData.ADDRESS_ALPHA.value();
+        String alias = AddressTestFactory.getAddressString();
 
         Assertions.assertFalse(Files.exists(tempKeystorePath), "Keystore file should not exist before test.");
 
         // When
-        keyStoreService.writePrivateKeyToKeystore(keyPair, alias);
+        keyStoreService.writePrivateKeyToKeystore(VALID_KEY_PAIR, alias);
 
         // Then
         Assertions.assertTrue(Files.exists(tempKeystorePath), "Keystore file should be created.");
 
         PrivateKey retrievedKey = keyStoreService.readPrivateKeyFromKeystore(alias);
-        Assertions.assertEquals(keyPair.getPrivate(), retrievedKey);
+        Assertions.assertEquals(VALID_KEY_PAIR.getPrivate(), retrievedKey);
     }
 
     @Test
-    void testWritePrivateKeyToKeystore_filePresent_writesSecondKey() {
+    void testWritePrivateKeyToKeystore_filePresent_writesAdditionalKey() {
         // Given
-        KeyPair keyPairAlpha = WalletTestData.KEYPAIR_ALPHA;
-        String aliasAlpha = WalletTestData.ADDRESS_ALPHA.value();
+        String alias = AddressTestFactory.getAddressString();
 
-        KeyPair keyPairBeta = WalletTestData.KEYPAIR_BETA;
-        String aliasBeta = WalletTestData.ADDRESS_BETA.value();
+        KeyPair additionalKeypair = KeyPairUtility.generateKeyPair();
+        String additionalAlias = AddressTestFactory.getAddressString();
 
         // When
-        keyStoreService.writePrivateKeyToKeystore(keyPairAlpha, aliasAlpha);
+        keyStoreService.writePrivateKeyToKeystore(VALID_KEY_PAIR, alias);
 
         Assertions.assertTrue(Files.exists(tempKeystorePath), "Keystore file should be created.");
 
-        keyStoreService.writePrivateKeyToKeystore(keyPairBeta, aliasBeta);
+        keyStoreService.writePrivateKeyToKeystore(additionalKeypair, additionalAlias);
 
-        PrivateKey retrievedKeyAlpha = keyStoreService.readPrivateKeyFromKeystore(aliasAlpha);
-        Assertions.assertEquals(keyPairAlpha.getPrivate(), retrievedKeyAlpha);
+        PrivateKey retrievedKeyAlpha = keyStoreService.readPrivateKeyFromKeystore(alias);
+        Assertions.assertEquals(VALID_KEY_PAIR.getPrivate(), retrievedKeyAlpha);
 
-        PrivateKey retrievedKeyBeta = keyStoreService.readPrivateKeyFromKeystore(aliasBeta);
-        Assertions.assertEquals(keyPairBeta.getPrivate(), retrievedKeyBeta);
+        PrivateKey retrievedKeyBeta = keyStoreService.readPrivateKeyFromKeystore(additionalAlias);
+        Assertions.assertEquals(additionalKeypair.getPrivate(), retrievedKeyBeta);
     }
 
     @Test
     void readPrivateKeyFromKeystore_keystoreNotFound_throwsKeystoreException() throws IOException {
         // Given
-        String alias = WalletTestData.ADDRESS_ALPHA.value();
+        String alias = AddressTestFactory.getAddressString();
 
         Files.deleteIfExists(tempKeystorePath);
 
@@ -109,10 +112,9 @@ public class KeystoreServiceTest {
     @Test
     void testReadPrivateKeyFromKeystore_aliasNotFound_throwsKeystoreException() {
         // Given
-        KeyPair keyPair = WalletTestData.KEYPAIR_ALPHA;
-        String alias = WalletTestData.ADDRESS_ALPHA.value();
+        String alias = AddressTestFactory.getAddressString();
 
-        keyStoreService.writePrivateKeyToKeystore(keyPair, alias);
+        keyStoreService.writePrivateKeyToKeystore(VALID_KEY_PAIR, alias);
 
         // Then
         Exception thrown = Assertions.assertThrows(Exception.class, () -> keyStoreService.readPrivateKeyFromKeystore("wrong alias"), "Exception should be thrown in the event of alias not found.");
@@ -125,10 +127,9 @@ public class KeystoreServiceTest {
     @Test
     void testReadPrivateKeyFromKeystore_incorrectPassword_throwsKeystoreException() {
         // Given
-        KeyPair keyPair = WalletTestData.KEYPAIR_ALPHA;
-        String alias = WalletTestData.ADDRESS_ALPHA.value();
+        String alias = AddressTestFactory.getAddressString();
 
-        keyStoreService.writePrivateKeyToKeystore(keyPair, alias);
+        keyStoreService.writePrivateKeyToKeystore(VALID_KEY_PAIR, alias);
 
         // When
         Mockito.when(passwordSupplier.get()).thenReturn("wrong password");

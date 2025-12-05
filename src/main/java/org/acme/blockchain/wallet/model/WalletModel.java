@@ -1,7 +1,7 @@
 package org.acme.blockchain.wallet.model;
 
 import lombok.Builder;
-import org.acme.blockchain.common.model.AddressModel;
+import org.acme.blockchain.common.model.Address;
 
 import java.security.KeyPair;
 import java.time.OffsetDateTime;
@@ -9,11 +9,9 @@ import java.time.OffsetDateTime;
 @Builder(toBuilder = true)
 public record WalletModel(
 
-        long id,
-
         KeyPair keyPair,
 
-        AddressModel address,
+        Address address,
 
         byte[] publicKeyEncoded,
 
